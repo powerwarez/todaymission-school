@@ -17,7 +17,7 @@ CREATE TABLE users (
   school_id UUID REFERENCES schools(id) ON DELETE CASCADE,
   teacher_id UUID REFERENCES users(id) ON DELETE CASCADE, -- 학생의 경우 담당 교사
   auth_provider TEXT CHECK (auth_provider IN ('kakao', 'qr')),
-  auth_uid TEXT, -- Supabase Auth UID (교사용)
+  auth_uid UUID, -- Supabase Auth UID (교사용)
   qr_token TEXT UNIQUE, -- QR 로그인용 토큰 (학생용)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -48,8 +48,7 @@ CREATE TABLE mission_logs (
   student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   mission_id UUID NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
   completed_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(student_id, mission_id, completed_at::date)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 일일 스냅샷 테이블
@@ -122,6 +121,15 @@ CREATE INDEX idx_missions_teacher_id ON missions(teacher_id);
 CREATE INDEX idx_missions_school_id ON missions(school_id);
 CREATE INDEX idx_mission_logs_student_id ON mission_logs(student_id);
 CREATE INDEX idx_mission_logs_completed_at ON mission_logs(completed_at);
+-- 날짜 변환을 위한 IMMUTABLE 함수 생성
+CREATE OR REPLACE FUNCTION date_from_timestamp(ts TIMESTAMP WITH TIME ZONE)
+RETURNS DATE AS $$
+BEGIN
+  RETURN ts::date;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE UNIQUE INDEX idx_mission_logs_unique_daily ON mission_logs(student_id, mission_id, date_from_timestamp(completed_at));
 CREATE INDEX idx_daily_snapshots_student_date ON daily_snapshots(student_id, snapshot_date);
 CREATE INDEX idx_monthly_snapshots_student_period ON monthly_snapshots(student_id, year, month);
 CREATE INDEX idx_badges_teacher_id ON badges(teacher_id);
@@ -160,7 +168,6 @@ CREATE POLICY "Teachers can manage their school users" ON users
 CREATE POLICY "Students can view own data" ON users
   FOR SELECT USING (
     users.qr_token = current_setting('app.current_qr_token', true)
-    AND users.id = users.id
   );
 
 -- 미션 관련 정책
