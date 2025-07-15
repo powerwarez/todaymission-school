@@ -105,8 +105,7 @@ const TeacherOnboardingPage: React.FC = () => {
             학교 정보 등록
           </CardTitle>
           <CardDescription>
-            처음 가입하시는 선생님은 학교 정보를
-            등록해주세요.
+            반갑습니다 선생님! 학교 정보를 등록해주세요.
           </CardDescription>
         </CardHeader>
         <CardContent>
