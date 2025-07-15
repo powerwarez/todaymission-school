@@ -1,0 +1,70 @@
+/* QR Scanner Custom Styles */
+#qr-reader {
+  border: none !important;
+}
+
+#qr-reader__camera_selection {
+  display: none !important;
+}
+
+/* 대시보드 섹션 레이아웃 개선 */
+#qr-reader__dashboard_section {
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+/* 버튼 섹션 스타일링 */
+#qr-reader__dashboard_section_csr {
+  margin: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+#qr-reader__dashboard_section_csr button {
+  background-color: #10b981 !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  margin: 0.5rem !important;
+}
+
+#qr-reader__dashboard_section_csr button:hover {
+  background-color: #059669 !important;
+}
+
+#qr-reader__dashboard_section_csr button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+#qr-reader__scan_region {
+  background: transparent !important;
+}
+
+#qr-reader video {
+  border-radius: 0.5rem !important;
+  object-fit: cover !important;
+}
+
+#qr-reader__status_span {
+  color: #6b7280 !important;
+  font-size: 0.875rem !important;
+  margin-top: 0.5rem !important;
+}
+
+/* QR Box styling */
+#qr-reader__scan_region img[style*="opacity: 0.3"] {
+  opacity: 0.6 !important;
+}
+
+/* 중복 렌더링 방지 */
+#qr-reader__dashboard_section_swaplink {
+  display: none !important;
+}

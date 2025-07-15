@@ -16,6 +16,7 @@ import MissionSettingsPage from "./pages/MissionSettingsPage";
 import BadgeSettingsPage from "./pages/BadgeSettingsPage";
 import TeacherStudentsPage from "./pages/TeacherStudentsPage";
 import TeacherStatisticsPage from "./pages/TeacherStatisticsPage";
+import TeacherOnboardingPage from "./pages/TeacherOnboardingPage";
 import BadgeNotificationModal from "./components/BadgeNotificationModal";
 import { BadgeSelectionModal } from "./components/BadgeSelectionModal";
 import { Toaster } from "react-hot-toast";
@@ -142,6 +143,15 @@ const AppContent: React.FC = () => {
           <PublicRoute>
             <TeacherLoginPage />
           </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/teacher/onboarding"
+        element={
+          <PrivateRoute requiredRole="teacher">
+            <TeacherOnboardingPage />
+          </PrivateRoute>
         }
       />
 

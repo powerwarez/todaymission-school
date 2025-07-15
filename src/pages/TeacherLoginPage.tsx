@@ -1,43 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { Provider } from "@supabase/supabase-js";
 import { FaComment } from "react-icons/fa";
-import { useAuth } from "../contexts/AuthContext";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "../components/ui/dialog";
-import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
-import { Label } from "../components/ui/label";
 
 const TeacherLoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showSchoolModal, setShowSchoolModal] =
-    useState(false);
-  const [schoolName, setSchoolName] = useState("");
-  const [savingSchool, setSavingSchool] = useState(false);
-  const { user, userProfile, updateUserProfile } =
-    useAuth();
-
-  useEffect(() => {
-    // Check if user just signed up and needs to set school
-    const checkNewTeacher = async () => {
-      if (
-        user &&
-        userProfile?.role === "teacher" &&
-        !userProfile.school_id
-      ) {
-        setShowSchoolModal(true);
-      }
-    };
-
-    checkNewTeacher();
-  }, [user, userProfile]);
 
   const handleLogin = async (provider: Provider) => {
     setLoading(true);
@@ -47,7 +15,7 @@ const TeacherLoginPage: React.FC = () => {
         await supabase.auth.signInWithOAuth({
           provider: provider,
           options: {
-            redirectTo: `${window.location.origin}/teacher/dashboard`,
+            redirectTo: `${window.location.origin}/teacher/onboarding`,
           },
         });
       if (signInError) throw signInError;
@@ -68,35 +36,6 @@ const TeacherLoginPage: React.FC = () => {
       }
       setError(errorMessage);
       setLoading(false);
-    }
-  };
-
-  const handleSchoolSubmit = async () => {
-    if (!schoolName.trim() || !userProfile) return;
-
-    setSavingSchool(true);
-    try {
-      // Create school
-      const { data: schoolData, error: schoolError } =
-        await supabase
-          .from("schools")
-          .insert({ name: schoolName })
-          .select()
-          .single();
-
-      if (schoolError) throw schoolError;
-
-      // Update user with school_id
-      await updateUserProfile({ school_id: schoolData.id });
-
-      setShowSchoolModal(false);
-      // Redirect to teacher dashboard
-      window.location.href = "/teacher/dashboard";
-    } catch (err) {
-      console.error("Error creating school:", err);
-      setError("학교 등록 중 오류가 발생했습니다.");
-    } finally {
-      setSavingSchool(false);
     }
   };
 
@@ -137,42 +76,6 @@ const TeacherLoginPage: React.FC = () => {
           </p>
         </div>
       </div>
-
-      {/* School Registration Modal */}
-      <Dialog
-        open={showSchoolModal}
-        onOpenChange={setShowSchoolModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>학교 정보 등록</DialogTitle>
-            <DialogDescription>
-              처음 가입하시는 선생님은 학교 정보를
-              등록해주세요.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div>
-              <Label htmlFor="schoolName">학교 이름</Label>
-              <Input
-                id="schoolName"
-                type="text"
-                value={schoolName}
-                onChange={(e) =>
-                  setSchoolName(e.target.value)
-                }
-                placeholder="예: 서울초등학교"
-                className="mt-1"
-              />
-            </div>
-            <Button
-              onClick={handleSchoolSubmit}
-              disabled={!schoolName.trim() || savingSchool}
-              className="w-full">
-              {savingSchool ? "등록 중..." : "등록하기"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
