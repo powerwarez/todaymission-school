@@ -1,4 +1,9 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
 import { supabase } from "../lib/supabaseClient"; // Supabase 클라이언트 직접 사용
 import { useAuth } from "../contexts/AuthContext"; // 사용자 정보 가져오기
 import { useMissions } from "../hooks/useMissions";
@@ -23,7 +28,7 @@ const getCompletedMissionStyle = () => {
 };
 
 const TodayMissionPage: React.FC = () => {
-  const { user, timeZone } = useAuth(); // 사용자 정보 가져오기
+  const { user, userProfile, timeZone } = useAuth(); // 사용자 정보 가져오기
 
   // 오늘 날짜를 KST 기준으로 설정
   const todayKSTObj = useMemo(
@@ -58,47 +63,31 @@ const TodayMissionPage: React.FC = () => {
 
   const [showConfetti, setShowConfetti] = useState(false);
   // const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
-  const [snapshotChecked, setSnapshotChecked] = useState(false); // 스냅샷 확인/생성 완료 여부
+  const [snapshotChecked, setSnapshotChecked] =
+    useState(false); // 스냅샷 확인/생성 완료 여부
   const isSnapshotCheckRunning = useRef(false); // 스냅샷 체크 중복 실행 방지 플래그
 
   // 사용자 정보 상태
-  const [childName, setChildName] = useState<string>("고운이");
-  const [weeklyRewardGoal, setWeeklyRewardGoal] = useState<string>(
-    "이번주에 미션을 모두 달성해서 하고 싶은 것"
-  );
-  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [childName, setChildName] =
+    useState<string>("학생");
+  const [weeklyRewardGoal, setWeeklyRewardGoal] =
+    useState<string>(
+      "이번주에 미션을 모두 달성해서 하고 싶은 것"
+    );
+  const [showRewardModal, setShowRewardModal] =
+    useState(false);
   const [editingReward, setEditingReward] = useState("");
   const [savingReward, setSavingReward] = useState(false);
 
   // 사용자 정보 가져오기
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      if (!user) return;
+    if (!userProfile) return;
 
-      try {
-        const { data, error } = await supabase
-          .from("user_info")
-          .select("child_name, weekly_reward_goal")
-          .eq("user_id", user.id)
-          .single();
-
-        if (error) {
-          console.error(
-            "사용자 정보를 가져오는 중 오류가 발생했습니다:",
-            error
-          );
-        } else if (data) {
-          if (data.child_name) setChildName(data.child_name);
-          if (data.weekly_reward_goal)
-            setWeeklyRewardGoal(data.weekly_reward_goal);
-        }
-      } catch (err) {
-        console.error("사용자 정보 조회 중 오류가 발생했습니다:", err);
-      }
-    };
-
-    fetchUserInfo();
-  }, [user]);
+    // userProfile에서 사용자 이름 가져오기
+    setChildName(userProfile.name || "");
+    // weekly_reward_goal은 별도 테이블에서 관리해야 함 (TODO)
+    setWeeklyRewardGoal("");
+  }, [userProfile]);
 
   // --- 스냅샷 확인 및 생성 로직 수정 --- //
   useEffect(() => {
@@ -110,7 +99,9 @@ const TodayMissionPage: React.FC = () => {
       !isSnapshotCheckRunning.current
     ) {
       isSnapshotCheckRunning.current = true; // 실행 시작 플래그
-      console.log("[Snapshot Effect] Conditions met, starting check...");
+      console.log(
+        "[Snapshot Effect] Conditions met, starting check..."
+      );
 
       const checkAndCreateSnapshot = async () => {
         try {
@@ -129,7 +120,10 @@ const TodayMissionPage: React.FC = () => {
           console.log(
             `[Snapshot Check] Checking for snapshot on ${formattedTodayKST} for user ${user.id}`
           );
-          const { data: existingSnapshot, error: checkError } = await supabase
+          const {
+            data: existingSnapshot,
+            error: checkError,
+          } = await supabase
             .from("daily_mission_snapshots")
             .select("id", { count: "exact" }) // count만 가져와도 됨
             .eq("user_id", user.id)
@@ -140,7 +134,10 @@ const TodayMissionPage: React.FC = () => {
           if (checkError) throw checkError;
 
           // 2. 스냅샷 없으면 생성
-          if (!existingSnapshot || existingSnapshot.length === 0) {
+          if (
+            !existingSnapshot ||
+            existingSnapshot.length === 0
+          ) {
             console.log(
               `[Snapshot Create] No existing snapshot found. Creating for ${formattedTodayKST}`
             );
@@ -166,7 +163,10 @@ const TodayMissionPage: React.FC = () => {
           }
           setSnapshotChecked(true); // 확인/생성 완료
         } catch (err) {
-          console.error("[Snapshot Check/Create Error]:", err);
+          console.error(
+            "[Snapshot Check/Create Error]:",
+            err
+          );
           setSnapshotChecked(true); // 에러 발생 시에도 완료로 처리 (무한 루프 방지)
         } finally {
           isSnapshotCheckRunning.current = false; // 실행 종료 플래그
@@ -176,7 +176,13 @@ const TodayMissionPage: React.FC = () => {
       checkAndCreateSnapshot();
     }
     // 의존성 배열에 formattedTodayKST 추가
-  }, [user, missionsLoading, snapshotChecked, formattedTodayKST, missions]);
+  }, [
+    user,
+    missionsLoading,
+    snapshotChecked,
+    formattedTodayKST,
+    missions,
+  ]);
   // --- 스냅샷 로직 끝 --- //
 
   // Load celebration sound (변경 없음)
@@ -224,7 +230,10 @@ const TodayMissionPage: React.FC = () => {
         // 이미 완료된 미션이면 로그 삭제
         if (missionToUpdate.log_id) {
           // 로그 ID가 있는 경우에만 삭제 시도
-          console.log("삭제할 로그 ID:", missionToUpdate.log_id);
+          console.log(
+            "삭제할 로그 ID:",
+            missionToUpdate.log_id
+          );
           await deleteLog(missionToUpdate.log_id);
           console.log("로그 삭제 완료");
           // 로컬 상태 업데이트
@@ -265,10 +274,12 @@ const TodayMissionPage: React.FC = () => {
   };
 
   // 로딩 상태 통합 체크
-  const isLoading = missionsLoading || logsLoading || weekStatusLoading;
+  const isLoading =
+    missionsLoading || logsLoading || weekStatusLoading;
 
   // 에러 상태 통합 체크
-  const error = missionsError || logsError || weekStatusError;
+  const error =
+    missionsError || logsError || weekStatusError;
 
   // 미션 데이터와 로그 데이터 결합
   const missionsWithStatus = useMemo(() => {
@@ -276,7 +287,9 @@ const TodayMissionPage: React.FC = () => {
 
     return missions.map((mission) => {
       // 오늘 완료된 로그 찾기
-      const completedLog = logs.find((log) => log.mission_id === mission.id);
+      const completedLog = logs.find(
+        (log) => log.mission_id === mission.id
+      );
 
       return {
         ...mission,
@@ -293,21 +306,25 @@ const TodayMissionPage: React.FC = () => {
     try {
       setSavingReward(true);
 
-      const { error } = await supabase
-        .from("user_info")
-        .update({
-          weekly_reward_goal: editingReward,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id);
-
-      if (error) throw error;
+      // TODO: weekly_reward_goal을 저장할 별도 테이블 필요
+      console.log("Weekly reward goal:", editingReward);
+      // const { error } = await supabase
+      //   .from("user_settings") // 새로운 테이블 필요
+      //   .upsert({
+      //     user_id: user.id,
+      //     weekly_reward_goal: editingReward,
+      //     updated_at: new Date().toISOString(),
+      //   });
+      // if (error) throw error;
 
       setWeeklyRewardGoal(editingReward);
       setShowRewardModal(false);
       toast.success("주간 목표가 저장되었습니다.");
     } catch (err) {
-      console.error("주간 목표 저장 중 오류가 발생했습니다:", err);
+      console.error(
+        "주간 목표 저장 중 오류가 발생했습니다:",
+        err
+      );
       toast.error("주간 목표 저장에 실패했습니다.");
     } finally {
       setSavingReward(false);
@@ -331,20 +348,24 @@ const TodayMissionPage: React.FC = () => {
       <div className="flex justify-between items-center mb-2">
         <h1
           className="text-3xl font-bold"
-          style={{ color: "var(--color-text-primary)" }}
-        >
+          style={{ color: "var(--color-text-primary)" }}>
           {childName || "우리 아이의 방울방울 미션 챌린지"}
         </h1>
         <div className="text-right">
           <p
             className="text-lg font-semibold"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
+            style={{
+              color: "var(--color-text-secondary)",
+            }}>
             {/* 표시 날짜도 KST 기준으로 명확하게 */}
-            {format(todayKSTObj, "yyyy년 M월 d일", { timeZone })}
+            {format(todayKSTObj, "yyyy년 M월 d일", {
+              timeZone,
+            })}
           </p>
           {/* 요일 표시는 로컬 Date 객체의 getDay() 사용 가능 */}
-          <p className="text-md" style={{ color: "var(--color-text-muted)" }}>
+          <p
+            className="text-md"
+            style={{ color: "var(--color-text-muted)" }}>
             {getWeekdayString(todayKSTObj)}요일
           </p>
         </div>
@@ -354,30 +375,34 @@ const TodayMissionPage: React.FC = () => {
       <div
         className="mb-6 flex items-center p-3 rounded-lg cursor-pointer"
         style={{ backgroundColor: "var(--color-bg-hover)" }}
-        onClick={openRewardModal}
-      >
+        onClick={openRewardModal}>
         <div className="flex-1">
           <div className="flex items-center">
             <LuGift
               className="mr-2"
               size={28}
-              style={{ color: "var(--color-primary-medium)" }}
+              style={{
+                color: "var(--color-primary-medium)",
+              }}
             />
             <p
               className="text-2xl font-semibold"
-              style={{ color: "var(--color-text-primary)" }}
-            >
+              style={{
+                color: "var(--color-text-primary)",
+              }}>
               이번주 보상
             </p>
           </div>
           <div
             className="inline-flex items-center rounded-lg p-2 mt-2"
-            style={{ backgroundColor: "var(--color-primary-light)" }}
-          >
+            style={{
+              backgroundColor: "var(--color-primary-light)",
+            }}>
             <p
               className="text-2xl"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
+              style={{
+                color: "var(--color-text-secondary)",
+              }}>
               {weeklyRewardGoal}
             </p>
           </div>
@@ -389,41 +414,45 @@ const TodayMissionPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black bg-opacity-50"
-            onClick={() => setShowRewardModal(false)}
-          ></div>
+            onClick={() => setShowRewardModal(false)}></div>
           <div className="relative bg-white rounded-lg p-6 max-w-md w-full m-4">
             <button
               onClick={() => setShowRewardModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-            >
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
               <LuX size={20} />
             </button>
 
             <div className="text-center">
               <h2
                 className="text-xl font-bold mb-4"
-                style={{ color: "var(--color-text-primary)" }}
-              >
+                style={{
+                  color: "var(--color-text-primary)",
+                }}>
                 주간 보상 설정
               </h2>
               <p className="text-sm text-gray-600 mb-4">
-                이번 주 미션을 모두 달성했을 때 받고 싶은 보상을 입력하세요.
+                이번 주 미션을 모두 달성했을 때 받고 싶은
+                보상을 입력하세요.
               </p>
 
               <textarea
                 value={editingReward}
-                onChange={(e) => setEditingReward(e.target.value)}
+                onChange={(e) =>
+                  setEditingReward(e.target.value)
+                }
                 className="w-full p-3 border border-gray-300 rounded-lg mb-4"
                 style={{
                   outline: "none",
                   borderColor: "var(--color-border-light)",
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = "var(--color-border-focus)";
+                  e.target.style.borderColor =
+                    "var(--color-border-focus)";
                   e.target.style.boxShadow = `0 0 0 2px var(--color-border-focus)`;
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = "var(--color-border-light)";
+                  e.target.style.borderColor =
+                    "var(--color-border-light)";
                   e.target.style.boxShadow = "none";
                 }}
                 rows={3}
@@ -435,7 +464,8 @@ const TodayMissionPage: React.FC = () => {
                 disabled={savingReward}
                 className="px-6 py-2 rounded-lg transition-colors flex items-center justify-center w-full text-white"
                 style={{
-                  backgroundColor: "var(--color-primary-medium)",
+                  backgroundColor:
+                    "var(--color-primary-medium)",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor =
@@ -444,8 +474,7 @@ const TodayMissionPage: React.FC = () => {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor =
                     "var(--color-primary-medium)";
-                }}
-              >
+                }}>
                 {savingReward ? (
                   <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-white mr-2"></span>
                 ) : (
@@ -460,7 +489,9 @@ const TodayMissionPage: React.FC = () => {
 
       {isLoading && <p>데이터 로딩 중...</p>}
       {error && (
-        <p style={{ color: "var(--color-text-error)" }}>오류: {error}</p>
+        <p style={{ color: "var(--color-text-error)" }}>
+          오류: {error}
+        </p>
       )}
 
       {!isLoading && !error && (
@@ -468,14 +499,15 @@ const TodayMissionPage: React.FC = () => {
           <div className="flex-1 space-y-4">
             {missionsWithStatus.length === 0 && (
               <p className="text-center text-gray-500 bg-white p-6 rounded-lg shadow">
-                아직 설정된 미션이 없어요! "도전과제 설정"에서 오늘의 미션을
-                만들어 보세요.
+                아직 설정된 미션이 없어요! "도전과제
+                설정"에서 오늘의 미션을 만들어 보세요.
               </p>
             )}
             {missionsWithStatus.map((mission) => {
-              const missionStyle = mission.is_completed_today
-                ? "border-l-4"
-                : "bg-white";
+              const missionStyle =
+                mission.is_completed_today
+                  ? "border-l-4"
+                  : "bg-white";
               const hoverStyle = mission.is_completed_today
                 ? ""
                 : "hover:bg-gray-50";
@@ -483,17 +515,19 @@ const TodayMissionPage: React.FC = () => {
                 ? "line-through"
                 : "text-gray-800";
 
-              const completedStyle = mission.is_completed_today
-                ? getCompletedMissionStyle()
-                : {};
+              const completedStyle =
+                mission.is_completed_today
+                  ? getCompletedMissionStyle()
+                  : {};
 
               return (
                 <div
                   key={mission.id}
-                  onClick={() => handleToggleComplete(mission)} // div 전체 클릭 핸들러
+                  onClick={() =>
+                    handleToggleComplete(mission)
+                  } // div 전체 클릭 핸들러
                   className={`flex items-center p-4 rounded-lg shadow transition-all duration-300 ease-in-out cursor-pointer ${missionStyle} ${hoverStyle}`}
-                  style={completedStyle}
-                >
+                  style={completedStyle}>
                   <div className="flex-grow mr-4">
                     <p
                       className={`text-lg font-medium ${textStyle}`}
@@ -501,8 +535,7 @@ const TodayMissionPage: React.FC = () => {
                         color: mission.is_completed_today
                           ? "var(--color-text-primary)"
                           : "var(--color-text-secondary)",
-                      }}
-                    >
+                      }}>
                       {mission.content}
                     </p>
                   </div>

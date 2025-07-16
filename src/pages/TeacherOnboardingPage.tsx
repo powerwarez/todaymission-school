@@ -84,19 +84,18 @@ const TeacherOnboardingPage: React.FC = () => {
         if (updateError) throw updateError;
       }
 
-      // 성공 시 대시보드로 이동
-      navigate("/teacher/dashboard");
+      // 3. 페이지 새로고침하여 AuthContext가 새 데이터를 가져오도록 함
+      window.location.href = "/teacher/dashboard";
     } catch (err) {
       console.error("Error creating school:", err);
       setError("학교 등록 중 오류가 발생했습니다.");
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="max-w-md w-full">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <Card className="max-w-md w-full shadow-xl border-gray-200">
         <CardHeader className="text-center">
           <div className="mx-auto bg-blue-100 rounded-full p-4 w-fit mb-4">
             <School className="h-8 w-8 text-blue-600" />

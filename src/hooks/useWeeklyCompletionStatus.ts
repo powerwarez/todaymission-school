@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { toZonedTime, format } from "date-fns-tz";
@@ -9,16 +15,21 @@ const timeZone = "Asia/Seoul";
 
 // 날짜를 YYYY-MM-DD 형식으로 포맷 (KST 시간대 고려)
 const formatDate = (date: Date): string => {
-  return format(toZonedTime(date, timeZone), "yyyy-MM-dd", { timeZone });
+  return format(toZonedTime(date, timeZone), "yyyy-MM-dd", {
+    timeZone,
+  });
 };
 
 // 오늘을 기준으로 현재 주의 월요일과 금요일 날짜 객체 반환 (KST 기준)
-const getWeekDates = (today: Date): { monday: Date; friday: Date } => {
+const getWeekDates = (
+  today: Date
+): { monday: Date; friday: Date } => {
   // 오늘 날짜를 KST로 변환
   const todayKST = toZonedTime(today, timeZone);
   // KST 기준 요일 (0:일요일, 1:월요일, ..., 6:토요일)
   const currentDay = todayKST.getDay();
-  const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay; // 일요일이면 이전 주 월요일로
+  const diffToMonday =
+    currentDay === 0 ? -6 : 1 - currentDay; // 일요일이면 이전 주 월요일로
   const diffToFriday = 5 - currentDay;
 
   // 월요일 계산
@@ -55,30 +66,51 @@ interface PartialSnapshot {
 export const useWeeklyCompletionStatus = () => {
   const { user } = useAuth();
   const { showBadgeNotification } = useNotification();
-  const [weekStatus, setWeekStatus] = useState<WeekdayStatus[]>([]);
+  const [weekStatus, setWeekStatus] = useState<
+    WeekdayStatus[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // 주간 스트릭 달성 상태
-  const [weeklyStreakAchieved, setWeeklyStreakAchieved] = useState(false);
+  const [weeklyStreakAchieved, setWeeklyStreakAchieved] =
+    useState(false);
   // 이미 보상을 받았는지 여부
-  const [weeklyStreakRewarded, setWeeklyStreakRewarded] = useState(false);
+  const [weeklyStreakRewarded, setWeeklyStreakRewarded] =
+    useState(false);
 
   // 오늘 날짜는 한 번만 생성되도록 useMemo 사용 (KST 기준)
   const today = useMemo(() => new Date(), []);
   // KST로 변환된 오늘 날짜
-  const todayKST = useMemo(() => toZonedTime(today, timeZone), [today]);
+  const todayKST = useMemo(
+    () => toZonedTime(today, timeZone),
+    [today]
+  );
 
   // 이번 주 월/금 날짜 계산 결과를 useMemo로 캐싱 (KST 기준)
-  const { monday, friday } = useMemo(() => getWeekDates(todayKST), [todayKST]);
+  const { monday, friday } = useMemo(
+    () => getWeekDates(todayKST),
+    [todayKST]
+  );
   // 포맷된 날짜 문자열도 KST 기준으로 생성
-  const formattedMonday = useMemo(() => formatDate(monday), [monday]);
-  const formattedFriday = useMemo(() => formatDate(friday), [friday]);
+  const formattedMonday = useMemo(
+    () => formatDate(monday),
+    [monday]
+  );
+  const formattedFriday = useMemo(
+    () => formatDate(friday),
+    [friday]
+  );
 
   // 주간 스트릭 달성 여부 확인
   const checkWeeklyStreak = useCallback(
     async (weeklyStatus: WeekdayStatus[]) => {
-      if (!user || weeklyStreakRewarded || weeklyStreakAchieved) return;
+      if (
+        !user ||
+        weeklyStreakRewarded ||
+        weeklyStreakAchieved
+      )
+        return;
 
       // 오늘이 금요일인지 확인 (KST 기준)
       const todayKST = toZonedTime(new Date(), timeZone);
@@ -87,7 +119,9 @@ export const useWeeklyCompletionStatus = () => {
 
       // 금요일이 아니면 체크하지 않음
       if (!isFriday) {
-        console.log("오늘은 금요일이 아니므로 주간미션 체크를 하지 않습니다.");
+        console.log(
+          "오늘은 금요일이 아니므로 주간미션 체크를 하지 않습니다."
+        );
         return;
       }
 
@@ -107,10 +141,20 @@ export const useWeeklyCompletionStatus = () => {
           isToday: day.isToday,
         }))
       );
-      console.log("- 이미 달성 상태:", weeklyStreakAchieved);
-      console.log("- 이미 보상 받음:", weeklyStreakRewarded);
+      console.log(
+        "- 이미 달성 상태:",
+        weeklyStreakAchieved
+      );
+      console.log(
+        "- 이미 보상 받음:",
+        weeklyStreakRewarded
+      );
 
-      if (allCompleted && !weeklyStreakAchieved && !weeklyStreakRewarded) {
+      if (
+        allCompleted &&
+        !weeklyStreakAchieved &&
+        !weeklyStreakRewarded
+      ) {
         console.log("🎉 금요일에 주간 미션 모두 완료!");
         setWeeklyStreakAchieved(true);
 
@@ -120,9 +164,13 @@ export const useWeeklyCompletionStatus = () => {
           mondayStart.setHours(0, 0, 0, 0);
 
           // 일요일 계산 (이번 주 끝)
-          const todayKST = toZonedTime(new Date(), timeZone);
+          const todayKST = toZonedTime(
+            new Date(),
+            timeZone
+          );
           const currentDay = todayKST.getDay();
-          const diffToSunday = currentDay === 0 ? 0 : 7 - currentDay; // 일요일이면 오늘, 아니면 다음 일요일
+          const diffToSunday =
+            currentDay === 0 ? 0 : 7 - currentDay; // 일요일이면 오늘, 아니면 다음 일요일
           const sunday = new Date(todayKST);
           sunday.setDate(todayKST.getDate() + diffToSunday);
           sunday.setHours(23, 59, 59, 999);
@@ -131,22 +179,38 @@ export const useWeeklyCompletionStatus = () => {
             `[StateHook] Checking weekly streak between ${mondayStart.toISOString()} and ${sunday.toISOString()}`
           );
 
-          // 주간 스트릭 배지 획득 여부 확인 (이번 주 전체 기간, badge_type이 weekly인 모든 배지)
-          const { data: existingRewards, error: checkError } = await supabase
+          // 주간 스트릭 배지 획득 여부 확인 (이번 주 전체 기간)
+          const {
+            data: existingRewards,
+            error: checkError,
+          } = await supabase
             .from("earned_badges")
-            .select("id, badge_id, badge_type, earned_at")
-            .eq("user_id", user.id)
-            .eq("badge_type", "weekly")
-            .gte("earned_at", mondayStart.toISOString())
-            .lte("earned_at", sunday.toISOString());
+            .select("id, badge_id, earned_date")
+            .eq("student_id", user.id)
+            .gte(
+              "earned_date",
+              format(mondayStart, "yyyy-MM-dd")
+            )
+            .lte(
+              "earned_date",
+              format(sunday, "yyyy-MM-dd")
+            );
 
           if (checkError) throw checkError;
 
-          console.log("주간 스트릭 획득 여부:", existingRewards);
+          console.log(
+            "주간 스트릭 획득 여부:",
+            existingRewards
+          );
 
           // 이미 배지를 획득했는지 확인
-          if (existingRewards && existingRewards.length > 0) {
-            console.log("이미 이번 주에 주간 스트릭 배지를 획득했습니다.");
+          if (
+            existingRewards &&
+            existingRewards.length > 0
+          ) {
+            console.log(
+              "이미 이번 주에 주간 스트릭 배지를 획득했습니다."
+            );
             setWeeklyStreakRewarded(true);
           } else {
             // 아직 배지가 부여되지 않았다면 배지 선택 모달 표시
@@ -158,7 +222,9 @@ export const useWeeklyCompletionStatus = () => {
           console.error("주간 스트릭 확인 중 오류:", err);
         }
       } else if (!allCompleted && isFriday) {
-        console.log("금요일이지만 모든 미션이 완료되지 않았습니다.");
+        console.log(
+          "금요일이지만 모든 미션이 완료되지 않았습니다."
+        );
       }
     },
     [
@@ -182,23 +248,31 @@ export const useWeeklyCompletionStatus = () => {
 
     try {
       // 1. 해당 주의 스냅샷 데이터 가져오기
-      const { data: snapshots, error: fetchError } = await supabase
-        .from("daily_mission_snapshots")
-        .select("date, completed_missions_count, total_missions_count")
-        .eq("user_id", user.id)
-        .gte("date", formattedMonday)
-        .lte("date", formattedFriday)
-        .order("date", { ascending: true });
+      const { data: snapshots, error: fetchError } =
+        await supabase
+          .from("daily_snapshots")
+          .select("*")
+          .eq("student_id", user.id)
+          .gte("snapshot_date", formattedMonday)
+          .lte("snapshot_date", formattedFriday)
+          .order("snapshot_date", { ascending: true });
 
       if (fetchError) throw fetchError;
 
       // 2. 해당 주의 로그 데이터도 가져오기
-      const { data: weeklyLogs, error: logsError } = await supabase
-        .from("mission_logs")
-        .select("mission_id, completed_at")
-        .eq("user_id", user.id)
-        .gte("completed_at", formattedMonday)
-        .lte("completed_at", formattedFriday);
+      const { data: weeklyLogs, error: logsError } =
+        await supabase
+          .from("mission_logs")
+          .select("mission_id, completed_at")
+          .eq("student_id", user.id)
+          .gte(
+            "completed_at",
+            `${formattedMonday}T00:00:00`
+          )
+          .lte(
+            "completed_at",
+            `${formattedFriday}T23:59:59`
+          );
 
       if (logsError) throw logsError;
 
@@ -213,10 +287,21 @@ export const useWeeklyCompletionStatus = () => {
       });
 
       // 3. 스냅샷 데이터를 날짜별 Map으로 변환
-      const snapshotsMap = new Map<string, PartialSnapshot>();
-      (snapshots || []).forEach((snap) =>
-        snapshotsMap.set(snap.date, snap as PartialSnapshot)
-      );
+      const snapshotsMap = new Map<
+        string,
+        PartialSnapshot
+      >();
+      (snapshots || []).forEach((snap) => {
+        const partialSnap: PartialSnapshot = {
+          date: snap.snapshot_date,
+          total_missions_count:
+            (snap.missions as unknown[])?.length || 0,
+          completed_missions_count:
+            (snap.completed_missions as unknown[])
+              ?.length || 0,
+        };
+        snapshotsMap.set(snap.snapshot_date, partialSnap);
+      });
 
       // 4. 월요일부터 금요일까지 순회하며 상태 계산
       const statusResult: WeekdayStatus[] = [];
@@ -228,23 +313,31 @@ export const useWeeklyCompletionStatus = () => {
       for (let i = 1; i <= 5; i++) {
         const currentDateStr = formatDate(currentDay);
         const snapshot = snapshotsMap.get(currentDateStr);
-        const logsForDay = logsByDate.get(currentDateStr) || [];
+        const logsForDay =
+          logsByDate.get(currentDateStr) || [];
         let isCompleted: boolean | null = null;
 
         if (snapshot) {
           // 총 미션 수와 완료된 미션 수 설정
-          const totalMissions = snapshot.total_missions_count || 0;
-          const completedMissions = snapshot.completed_missions_count || 0;
+          const totalMissions =
+            snapshot.total_missions_count || 0;
+          const completedMissions =
+            snapshot.completed_missions_count || 0;
 
           console.log(
             `[${currentDateStr}] 스냅샷 - 총: ${totalMissions}, 완료: ${completedMissions}, 로그: ${logsForDay.length}`
           );
 
           // 스냅샷의 completed_missions_count와 total_missions_count 비교로 완료 여부 판단
-          if (totalMissions > 0 && completedMissions >= totalMissions) {
+          if (
+            totalMissions > 0 &&
+            completedMissions >= totalMissions
+          ) {
             // 모든 미션이 완료된 경우
             isCompleted = true;
-            console.log(`[${currentDateStr}] ✅ 일일미션 완료됨`);
+            console.log(
+              `[${currentDateStr}] ✅ 일일미션 완료됨`
+            );
           } else if (totalMissions > 0) {
             // 미션이 있지만 완료되지 않은 경우
             isCompleted = false;
@@ -266,7 +359,9 @@ export const useWeeklyCompletionStatus = () => {
             );
           } else {
             isCompleted = null; // 데이터 없음
-            console.log(`[${currentDateStr}] ⚫ 스냅샷과 로그 모두 없음`);
+            console.log(
+              `[${currentDateStr}] ⚫ 스냅샷과 로그 모두 없음`
+            );
           }
         }
 
@@ -284,8 +379,12 @@ export const useWeeklyCompletionStatus = () => {
                 )
               : 0
             : 0,
-          totalMissions: snapshot ? snapshot.total_missions_count : 0,
-          completedMissions: snapshot ? snapshot.completed_missions_count : 0,
+          totalMissions: snapshot
+            ? snapshot.total_missions_count
+            : 0,
+          completedMissions: snapshot
+            ? snapshot.completed_missions_count
+            : 0,
         });
 
         currentDay.setDate(currentDay.getDate() + 1);

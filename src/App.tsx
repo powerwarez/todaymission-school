@@ -34,6 +34,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
 }) => {
   const { session, userProfile, loading } = useAuth();
 
+  // 로딩 중일 때
   if (loading) {
     return (
       <div className="w-full h-screen flex items-center justify-center">
@@ -52,6 +53,39 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   // 인증되지 않은 경우
   if (!session && !userProfile) {
     return <Navigate to="/" replace />;
+  }
+
+  // 교사로 로그인했지만 아직 학교가 설정되지 않은 경우에만 온보딩으로
+  if (
+    requiredRole === "teacher" &&
+    session &&
+    window.location.pathname !== "/teacher/onboarding"
+  ) {
+    // userProfile이 로드되었는데 school_id가 없는 경우에만 온보딩으로
+    if (
+      userProfile &&
+      userProfile.role === "teacher" &&
+      !userProfile.school_id
+    ) {
+      return <Navigate to="/teacher/onboarding" replace />;
+    }
+    // userProfile이 아직 로드되지 않았고 세션만 있는 경우 (새 교사일 가능성)
+    // 이 경우는 잠시 기다려봐야 함
+    if (!userProfile && session) {
+      // AuthContext에서 fetchUserProfile이 실행될 때까지 기다림
+      return (
+        <div className="w-full h-screen flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg">
+            <h1 className="text-2xl font-bold text-black">
+              프로필 확인 중...
+            </h1>
+            <p className="mt-2 text-gray-600">
+              잠시만 기다려주세요.
+            </p>
+          </div>
+        </div>
+      );
+    }
   }
 
   // 역할 확인
@@ -96,6 +130,35 @@ const PublicRoute: React.FC<{
     } else if (userProfile?.role === "student") {
       return <Navigate to="/student/dashboard" replace />;
     }
+  }
+
+  return children;
+};
+
+// OnboardingRoute 컴포넌트 추가 (PrivateRoute 아래에)
+const OnboardingRoute: React.FC<{
+  children: React.ReactElement;
+}> = ({ children }) => {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg">
+          <h1 className="text-2xl font-bold text-black">
+            로딩 중...
+          </h1>
+          <p className="mt-2 text-gray-600">
+            잠시만 기다려주세요.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 세션이 없으면 로그인 페이지로
+  if (!session) {
+    return <Navigate to="/teacher/login" replace />;
   }
 
   return children;
@@ -149,9 +212,9 @@ const AppContent: React.FC = () => {
       <Route
         path="/teacher/onboarding"
         element={
-          <PrivateRoute requiredRole="teacher">
+          <OnboardingRoute>
             <TeacherOnboardingPage />
-          </PrivateRoute>
+          </OnboardingRoute>
         }
       />
 
@@ -164,7 +227,7 @@ const AppContent: React.FC = () => {
         }>
         <Route
           path="dashboard"
-          element={<TodayMissionPage />}
+          element={<TeacherStatisticsPage />}
         />
         <Route
           path="hall-of-fame"

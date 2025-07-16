@@ -1,97 +1,200 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { useAuth } from '../contexts/AuthContext';
-import { Mission } from '../types';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../contexts/AuthContext";
+import { Mission } from "../types";
 
 export const useMissions = () => {
-  const { user } = useAuth();
+  const { userProfile, isTeacher } = useAuth();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchMissions = useCallback(async () => {
-    if (!user) return;
-    console.log('[useMissions] Fetching missions...');
+    // 프로필이 없으면 미션을 조회하지 않음
+    if (!userProfile) {
+      setMissions([]);
+      setLoading(false);
+      return;
+    }
+
+    // school_id 결정: 교사는 직접, 학생은 teacher의 school_id 사용
+    let schoolId: string | null = null;
+    if (isTeacher && userProfile.school_id) {
+      schoolId = userProfile.school_id;
+    } else if (
+      !isTeacher &&
+      userProfile.teacher?.school_id
+    ) {
+      schoolId = userProfile.teacher.school_id;
+    }
+
+    if (!schoolId) {
+      setMissions([]);
+      setLoading(false);
+      return;
+    }
+
+    console.log("[useMissions] Fetching missions...");
     setLoading(true);
     setError(null);
     try {
       const { data, error: fetchError } = await supabase
-        .from('missions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('order', { ascending: true });
+        .from("missions")
+        .select("*")
+        .eq("school_id", schoolId)
+        .order("order_index", { ascending: true });
 
       if (fetchError) throw fetchError;
-      setMissions(data || []);
+
+      // 데이터베이스 형태를 UI 형태로 변환
+      const transformedData = (data || []).map(
+        (mission) => ({
+          ...mission,
+          content: mission.title, // title을 content로 매핑
+          order: mission.order_index, // order_index를 order로 매핑
+        })
+      );
+
+      setMissions(transformedData);
     } catch (err: unknown) {
-      console.error('Error fetching missions:', err);
-      setError('미션을 불러오는 중 오류가 발생했습니다.');
+      console.error("Error fetching missions:", err);
+      setError("미션을 불러오는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userProfile, isTeacher]);
 
   useEffect(() => {
     fetchMissions();
   }, [fetchMissions]);
 
-  const addMission = async (missionData: { content: string; order: number }): Promise<Mission | null> => {
-    if (!user) return null;
+  const addMission = async (missionData: {
+    content: string;
+    order: number;
+  }): Promise<Mission | null> => {
+    if (!userProfile || !isTeacher) return null;
     try {
       const { data, error: insertError } = await supabase
-        .from('missions')
-        .insert({ user_id: user.id, content: missionData.content, order: missionData.order })
+        .from("missions")
+        .insert({
+          school_id: userProfile.school_id,
+          teacher_id: userProfile.id,
+          title: missionData.content,
+          order_index: missionData.order,
+        })
         .select()
         .single();
 
       if (insertError) throw insertError;
       if (data) {
-        setMissions((prev) => [...prev, data].sort((a, b) => a.order - b.order));
+        setMissions((prev) =>
+          [...prev, data].sort(
+            (a, b) => a.order_index - b.order_index
+          )
+        );
         return data;
       }
       return null;
     } catch (err: unknown) {
-      console.error('Error adding mission:', err);
-      setError('미션 추가 중 오류가 발생했습니다.');
+      console.error("Error adding mission:", err);
+      setError("미션 추가 중 오류가 발생했습니다.");
       return null;
     }
   };
 
-  const updateMission = async (id: string, updates: Partial<Omit<Mission, 'id' | 'user_id' | 'created_at'>>) => {
-     if (!user) return;
+  const updateMission = async (
+    id: string,
+    updates: {
+      content?: string;
+      order?: number;
+      description?: string;
+      is_active?: boolean;
+    }
+  ) => {
+    if (!userProfile || !isTeacher) return;
     try {
+      // content를 title로, order를 order_index로 변환
+      type DbUpdate = {
+        title?: string;
+        order_index?: number;
+        description?: string;
+        is_active?: boolean;
+      };
+
+      const dbUpdates: DbUpdate = {};
+      if (
+        "content" in updates &&
+        updates.content !== undefined
+      ) {
+        dbUpdates.title = updates.content;
+      }
+      if (
+        "order" in updates &&
+        updates.order !== undefined
+      ) {
+        dbUpdates.order_index = updates.order;
+      }
+      // 다른 필드들은 그대로 복사
+      if (
+        "description" in updates &&
+        updates.description !== undefined
+      ) {
+        dbUpdates.description = updates.description;
+      }
+      if (
+        "is_active" in updates &&
+        updates.is_active !== undefined
+      ) {
+        dbUpdates.is_active = updates.is_active;
+      }
+
       const { error: updateError } = await supabase
-        .from('missions')
-        .update(updates)
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .from("missions")
+        .update(dbUpdates)
+        .eq("id", id)
+        .eq("school_id", userProfile.school_id);
 
       if (updateError) throw updateError;
       setMissions((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, ...updates } : m)).sort((a, b) => a.order - b.order)
+        prev
+          .map((m) =>
+            m.id === id ? { ...m, ...updates } : m
+          )
+          .sort((a, b) => a.order - b.order)
       );
     } catch (err: unknown) {
-      console.error('Error updating mission:', err);
-      setError('미션 수정 중 오류가 발생했습니다.');
+      console.error("Error updating mission:", err);
+      setError("미션 수정 중 오류가 발생했습니다.");
     }
   };
 
- const deleteMission = async (id: string) => {
-     if (!user) return;
+  const deleteMission = async (id: string) => {
+    if (!userProfile || !isTeacher) return;
     try {
       const { error: deleteError } = await supabase
-        .from('missions')
+        .from("missions")
         .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .eq("id", id)
+        .eq("school_id", userProfile.school_id);
 
       if (deleteError) throw deleteError;
-      setMissions((prev) => prev.filter((m) => m.id !== id));
+      setMissions((prev) =>
+        prev.filter((m) => m.id !== id)
+      );
     } catch (err: unknown) {
-      console.error('Error deleting mission:', err);
-      setError('미션 삭제 중 오류가 발생했습니다.');
+      console.error("Error deleting mission:", err);
+      setError("미션 삭제 중 오류가 발생했습니다.");
     }
   };
 
-  return { missions, loading, error, fetchMissions, addMission, updateMission, deleteMission, setMissions };
-}; 
+  return {
+    missions,
+    loading,
+    error,
+    fetchMissions,
+    addMission,
+    updateMission,
+    deleteMission,
+    setMissions,
+  };
+};

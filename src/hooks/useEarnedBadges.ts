@@ -22,9 +22,13 @@ interface BadgeJoinResult {
   };
 }
 
-export const useEarnedBadges = (badgeType?: "mission" | "weekly") => {
+export const useEarnedBadges = (
+  badgeType?: "mission" | "weekly"
+) => {
   const { user } = useAuth();
-  const [earnedBadges, setEarnedBadges] = useState<EarnedBadge[]>([]);
+  const [earnedBadges, setEarnedBadges] = useState<
+    EarnedBadge[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,16 +65,19 @@ export const useEarnedBadges = (badgeType?: "mission" | "weekly") => {
           )
         `
         )
-        .eq("user_id", user.id);
+        .eq("student_id", user.id);
 
       // 배지 유형에 따른 필터링
       if (badgeType) {
         query = query.eq("badge_type", badgeType);
       }
 
-      const { data, error: fetchError } = await query.order("earned_at", {
-        ascending: false,
-      });
+      const { data, error: fetchError } = await query.order(
+        "earned_date",
+        {
+          ascending: false,
+        }
+      );
 
       if (fetchError) throw fetchError;
 
@@ -79,7 +86,8 @@ export const useEarnedBadges = (badgeType?: "mission" | "weekly") => {
       const formattedBadges: EarnedBadge[] =
         data?.map((item) => {
           // 타입 단언으로 item을 BadgeJoinResult로 취급
-          const joinResult = item as unknown as BadgeJoinResult;
+          const joinResult =
+            item as unknown as BadgeJoinResult;
           return {
             id: joinResult.id,
             user_id: joinResult.user_id,
@@ -107,8 +115,13 @@ export const useEarnedBadges = (badgeType?: "mission" | "weekly") => {
 
       setEarnedBadges(formattedBadges);
     } catch (err) {
-      console.error("획득한 배지 목록을 가져오는 중 오류 발생:", err);
-      setError("배지 정보를 불러오는 중 오류가 발생했습니다.");
+      console.error(
+        "획득한 배지 목록을 가져오는 중 오류 발생:",
+        err
+      );
+      setError(
+        "배지 정보를 불러오는 중 오류가 발생했습니다."
+      );
     } finally {
       setLoading(false);
     }

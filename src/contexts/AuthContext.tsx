@@ -51,31 +51,87 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const timeZone = "Asia/Seoul";
 
   const fetchUserProfile = async (
-    authUser: User | null
-  ) => {
-    if (!authUser) {
-      setUserProfile(null);
-      return;
-    }
+    authUser: User
+  ): Promise<UserProfile | null> => {
+    if (!authUser) return null;
 
     try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("*, school:schools(*)")
-        .eq("auth_uid", authUser.id)
-        .single();
+      console.log(
+        "Fetching user profile for auth_uid:",
+        authUser.id
+      );
 
-      if (error) {
+      // 먼저 기본 사용자 정보를 가져옵니다
+      const { data: userData, error: userError } =
+        await supabase
+          .from("users")
+          .select("*")
+          .eq("auth_uid", authUser.id)
+          .single();
+
+      if (userError) {
         console.error(
           "Error fetching user profile:",
-          error
+          userError
         );
-        return;
+        return null;
       }
 
-      setUserProfile(data);
+      if (!userData) {
+        return null;
+      }
+
+      // 교사인 경우 school 정보를 별도로 가져옵니다
+      let schoolData = null;
+      if (
+        userData.role === "teacher" &&
+        userData.school_id
+      ) {
+        const { data: school, error: schoolError } =
+          await supabase
+            .from("schools")
+            .select("*")
+            .eq("id", userData.school_id)
+            .single();
+
+        if (!schoolError && school) {
+          schoolData = school;
+        }
+      }
+
+      // 학생인 경우 teacher 정보를 별도로 가져옵니다
+      let teacherData = null;
+      if (
+        userData.role === "student" &&
+        userData.teacher_id
+      ) {
+        const { data: teacher, error: teacherError } =
+          await supabase
+            .from("users")
+            .select("*")
+            .eq("id", userData.teacher_id)
+            .single();
+
+        if (!teacherError && teacher) {
+          teacherData = teacher;
+        }
+      }
+
+      // userData와 관련 데이터를 합쳐서 반환합니다
+      const userWithRelations = {
+        ...userData,
+        school: schoolData,
+        teacher: teacherData,
+      };
+
+      console.log(
+        "User profile fetched:",
+        userWithRelations
+      );
+      return userWithRelations;
     } catch (err) {
       console.error("Failed to fetch user profile:", err);
+      return null;
     }
   };
 
@@ -108,7 +164,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   };
 
   useEffect(() => {
-    const getSession = async () => {
+    let authListener: {
+      subscription: { unsubscribe: () => void };
+    } | null = null;
+
+    const initAuth = async () => {
       try {
         // Check for QR token in cookies first
         const cookies = document.cookie.split(";");
@@ -128,50 +188,86 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           }
         }
 
-        // Otherwise check for normal auth session
+        // Get initial session
         const {
           data: { session },
           error,
         } = await supabase.auth.getSession();
+
         if (error) {
           console.error("Error getting session:", error);
+          setLoading(false);
+          return;
         }
-        setSession(session);
-        setUser(session?.user ?? null);
-        await fetchUserProfile(session?.user ?? null);
-      } catch (err) {
-        console.error("Failed to get session:", err);
-      } finally {
+
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          const profile = await fetchUserProfile(
+            session.user
+          );
+          if (profile) {
+            setUserProfile(profile);
+          }
+        }
+
         setLoading(false);
-      }
-    };
 
-    getSession();
-
-    try {
-      const { data: authListener } =
-        supabase.auth.onAuthStateChange(
+        // Setup auth state listener
+        const { data } = supabase.auth.onAuthStateChange(
           async (
             _event: AuthChangeEvent,
             session: Session | null
           ) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            await fetchUserProfile(session?.user ?? null);
-            setLoading(false);
+            console.log("Auth state changed:", _event);
+            console.log("Session:", session?.user?.id);
+
+            // 로그아웃이나 세션 만료가 아닌 경우에만 프로필 업데이트
+            if (_event !== "SIGNED_OUT" && session) {
+              setSession(session);
+              setUser(session.user);
+              const profile = await fetchUserProfile(
+                session.user
+              );
+              if (profile) {
+                setUserProfile(profile);
+              } else if (
+                _event === "TOKEN_REFRESHED" ||
+                _event === "USER_UPDATED"
+              ) {
+                // 토큰이 갱신되거나 사용자가 업데이트된 경우는 프로필이 없어도 정상
+                console.log(
+                  "Token refreshed or user updated without profile"
+                );
+              } else {
+                // 새로운 사용자인 경우
+                setUserProfile(null);
+              }
+            } else if (_event === "SIGNED_OUT") {
+              console.log(
+                "User signed out, clearing state"
+              );
+              setSession(null);
+              setUser(null);
+              setUserProfile(null);
+            }
           }
         );
 
-      return () => {
-        if (authListener?.subscription) {
-          authListener.subscription.unsubscribe();
-        }
-      };
-    } catch (err) {
-      console.error("Error setting up auth listener:", err);
-      setLoading(false);
-      return () => {};
-    }
+        authListener = data;
+      } catch (err) {
+        console.error("Error initializing auth:", err);
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    return () => {
+      if (authListener?.subscription) {
+        authListener.subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const logout = async () => {

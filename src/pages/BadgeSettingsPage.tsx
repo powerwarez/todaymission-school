@@ -42,65 +42,67 @@ const BadgeSettingsPage: React.FC = () => {
         }
 
         // 2. 모든 배지 목록 가져오기 (badges 테이블)
-        const { data: allBadges, error: badgesError } = await supabase
-          .from("badges")
-          .select("id, name, description, image_path") // 필요한 모든 컬럼 선택
-          .not("id", "like", "custom_%"); // custom_ 접두사가 붙은 배지 제외
+        const { data: allBadges, error: badgesError } =
+          await supabase
+            .from("badges")
+            .select("id, name, description, image_path") // 필요한 모든 컬럼 선택
+            .not("id", "like", "custom_%"); // custom_ 접두사가 붙은 배지 제외
 
         if (badgesError) throw badgesError;
-        if (!allBadges) throw new Error("배지 정보를 가져올 수 없습니다.");
+        if (!allBadges)
+          throw new Error(
+            "배지 정보를 가져올 수 없습니다."
+          );
 
         // 3. 현재 사용자의 배지 획득 기록 가져오기 (earned_badges 테이블)
-        const { data: earnedBadgesData, error: earnedBadgesError } =
-          await supabase
-            .from("earned_badges")
-            .select("badge_id, badge_type") // badge_type도 함께 가져오기
-            .eq("user_id", user.id);
+        const {
+          data: earnedBadgesData,
+          error: earnedBadgesError,
+        } = await supabase
+          .from("earned_badges")
+          .select("badge_id") // badge_type 컬럼이 없음
+          .eq("student_id", user.id);
 
         if (earnedBadgesError) throw earnedBadgesError;
 
         // 4. 배지별 획득 횟수 계산
         const badgeCounts: { [key: string]: number } = {};
-        let weeklyBadgeCount = 0; // weekly 타입 배지 총 개수
 
         if (earnedBadgesData) {
           earnedBadgesData.forEach(
-            (record: { badge_id: string; badge_type: string | null }) => {
+            (record: { badge_id: string }) => {
               // 일반 배지 카운트
               badgeCounts[record.badge_id] =
                 (badgeCounts[record.badge_id] || 0) + 1;
-
-              // weekly 타입 배지 카운트 (주간 미션 달성 배지용)
-              if (record.badge_type === "weekly") {
-                weeklyBadgeCount++;
-              }
             }
           );
         }
 
-        // weekly_streak_1 배지의 카운트를 weekly 타입 배지 총 개수로 설정
-        badgeCounts["weekly_streak_1"] = weeklyBadgeCount;
+        // weekly_streak_1 배지의 카운트는 별도로 계산 필요 (TODO)
 
         // 5. 배지 이미지 URL 사용 (DB 값을 그대로 사용)
-        const displayDataPromises = (allBadges as Badge[]).map(
-          async (badge) => {
-            // DB에 저장된 image_path 값을 그대로 사용
-            const imageUrl = badge.image_path || "/placeholder_badge.png"; // 값이 없으면 플레이스홀더 사용
+        const displayDataPromises = (
+          allBadges as Badge[]
+        ).map(async (badge) => {
+          // DB에 저장된 image_path 값을 그대로 사용
+          const imageUrl =
+            badge.image_path || "/placeholder_badge.png"; // 값이 없으면 플레이스홀더 사용
 
-            console.log(
-              `[${badge.name}] Using DB image_path directly:`,
-              imageUrl
-            ); // 확인용 로그
+          console.log(
+            `[${badge.name}] Using DB image_path directly:`,
+            imageUrl
+          ); // 확인용 로그
 
-            return {
-              ...badge,
-              count: badgeCounts[badge.id] || 0,
-              imageUrl: imageUrl, // DB 값을 그대로 할당
-            };
-          }
+          return {
+            ...badge,
+            count: badgeCounts[badge.id] || 0,
+            imageUrl: imageUrl, // DB 값을 그대로 할당
+          };
+        });
+
+        const displayData = await Promise.all(
+          displayDataPromises
         );
-
-        const displayData = await Promise.all(displayDataPromises);
         setBadges(displayData);
       } catch (err: unknown) {
         console.error("데이터 로딩 중 에러 발생:", err);
@@ -109,7 +111,9 @@ const BadgeSettingsPage: React.FC = () => {
         } else if (typeof err === "string") {
           setError(err);
         } else {
-          setError("데이터를 불러오는 중 알 수 없는 오류가 발생했습니다.");
+          setError(
+            "데이터를 불러오는 중 알 수 없는 오류가 발생했습니다."
+          );
         }
       } finally {
         setLoading(false);
@@ -124,8 +128,7 @@ const BadgeSettingsPage: React.FC = () => {
       {/* 페이지 제목 */}
       <h1
         className="text-3xl font-bold mb-8 text-center"
-        style={{ color: "var(--color-text-primary)" }}
-      >
+        style={{ color: "var(--color-text-primary)" }}>
         도전과제
       </h1>
 
@@ -137,7 +140,9 @@ const BadgeSettingsPage: React.FC = () => {
             style={{ color: "var(--color-primary-medium)" }}
             size={40}
           />
-          <p className="ml-3 text-lg text-gray-600">데이터를 불러오는 중...</p>
+          <p className="ml-3 text-lg text-gray-600">
+            데이터를 불러오는 중...
+          </p>
         </div>
       )}
 
@@ -150,10 +155,11 @@ const BadgeSettingsPage: React.FC = () => {
             backgroundColor: "var(--color-bg-error)",
             borderColor: "var(--color-border-error)",
             color: "var(--color-text-error)",
-          }}
-        >
+          }}>
           <LuTriangle className="inline mr-2" />
-          <span className="block sm:inline">오류가 발생했습니다: {error}</span>
+          <span className="block sm:inline">
+            오류가 발생했습니다: {error}
+          </span>
         </div>
       )}
 
@@ -162,8 +168,7 @@ const BadgeSettingsPage: React.FC = () => {
         <div>
           <h2
             className="text-2xl font-semibold mb-6 text-center"
-            style={{ color: "var(--color-text-primary)" }}
-          >
+            style={{ color: "var(--color-text-primary)" }}>
             달성 가능한 배지 목록
           </h2>
           {badges.length > 0 ? (
@@ -171,8 +176,7 @@ const BadgeSettingsPage: React.FC = () => {
               {badges.map((badge) => (
                 <li
                   key={badge.id}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors"
-                >
+                  className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
                   <div className="flex items-center space-x-4">
                     {/* 배지 이미지 표시 */}
                     {badge.imageUrl ? (
@@ -199,16 +203,19 @@ const BadgeSettingsPage: React.FC = () => {
                   <div className="text-right">
                     <span
                       className={`text-lg font-bold ${
-                        badge.count > 0 ? "" : "text-gray-400"
+                        badge.count > 0
+                          ? ""
+                          : "text-gray-400"
                       }`}
                       style={{
                         color:
                           badge.count > 0
                             ? "var(--color-primary-medium)"
                             : undefined,
-                      }}
-                    >
-                      {badge.count > 0 ? `${badge.count}회 달성` : "미달성"}
+                      }}>
+                      {badge.count > 0
+                        ? `${badge.count}회 달성`
+                        : "미달성"}
                     </span>
                   </div>
                 </li>

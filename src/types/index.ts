@@ -3,10 +3,16 @@ import { User } from "@supabase/supabase-js";
 // Database table types (adjust based on your actual Supabase schema)
 export interface Mission {
   id: string; // uuid
-  user_id: string; // uuid ref auth.users
-  content: string;
+  teacher_id: string; // uuid ref users
+  school_id: string; // uuid ref schools
+  title: string; // content를 위한 별칭
+  content?: string; // UI 호환성을 위해 옵셔널로 유지
+  description?: string;
+  is_active?: boolean;
+  order_index: number; // order를 위한 별칭
+  order?: number; // UI 호환성을 위해 옵셔널로 유지
   created_at: string; // timestampz
-  order: number;
+  updated_at?: string;
 }
 
 export interface MissionLog {

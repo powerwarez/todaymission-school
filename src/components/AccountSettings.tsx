@@ -5,7 +5,7 @@ import { LuUser, LuKey, LuSave } from "react-icons/lu";
 import { toast } from "react-hot-toast";
 
 const AccountSettings: React.FC = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [childName, setChildName] = useState<string>("");
   const [pinCode, setPinCode] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -17,40 +17,32 @@ const AccountSettings: React.FC = () => {
 
       setLoading(true);
 
-      try {
-        const { data, error } = await supabase
-          .from("user_info")
-          .select("child_name, pin_code")
-          .eq("user_id", user.id)
-          .single();
-
-        if (error) {
-          console.error(
-            "사용자 정보를 가져오는 중 오류가 발생했습니다:",
-            error
-          );
-          setError("사용자 정보를 가져오는 중 오류가 발생했습니다.");
-        } else if (data) {
-          setChildName(data.child_name);
-          setPinCode(data.pin_code);
-        }
-      } catch (err) {
-        console.error("사용자 정보 조회 중 오류가 발생했습니다:", err);
-        setError("사용자 정보 조회 중 오류가 발생했습니다.");
-      } finally {
-        setLoading(false);
+      // TODO: PIN 코드 기능을 위한 별도 테이블 필요
+      // 현재는 userProfile 사용
+      if (userProfile) {
+        setChildName(userProfile.name);
+        setPinCode(""); // PIN 코드 없음
+      } else {
+        setError(
+          "사용자 정보를 가져오는 중 오류가 발생했습니다."
+        );
       }
+      setLoading(false);
     };
 
     fetchUserInfo();
   }, [user]);
 
-  const handleChildNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChildNameChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setChildName(e.target.value);
     setError(null);
   };
 
-  const handlePinCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePinCodeChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const value = e.target.value;
     if (/^\d*$/.test(value) && value.length <= 4) {
       setPinCode(value);
@@ -80,14 +72,15 @@ const AccountSettings: React.FC = () => {
     setError(null);
 
     try {
+      // TODO: PIN 코드 저장을 위한 별도 테이블 필요
+      // 현재는 users 테이블의 name만 업데이트
       const { error: updateError } = await supabase
-        .from("user_info")
+        .from("users")
         .update({
-          child_name: childName.trim(),
-          pin_code: pinCode,
+          name: childName.trim(),
           updated_at: new Date().toISOString(),
         })
-        .eq("user_id", user.id);
+        .eq("id", user.id);
 
       if (updateError) {
         throw updateError;
@@ -100,7 +93,10 @@ const AccountSettings: React.FC = () => {
         position: "bottom-right",
       });
     } catch (err) {
-      console.error("계정 설정 저장 중 오류가 발생했습니다:", err);
+      console.error(
+        "계정 설정 저장 중 오류가 발생했습니다:",
+        err
+      );
       setError("계정 설정 저장 중 오류가 발생했습니다.");
 
       toast.error("계정 설정 저장에 실패했습니다.", {
@@ -114,7 +110,9 @@ const AccountSettings: React.FC = () => {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">계정 설정</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        계정 설정
+      </h2>
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -131,9 +129,9 @@ const AccountSettings: React.FC = () => {
           <div className="mb-4">
             <label
               htmlFor="childName"
-              className="block text-sm font-medium text-gray-700 mb-2 flex items-center"
-            >
-              <LuUser className="mr-2" /> 오늘의 미션 제목 설정
+              className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+              <LuUser className="mr-2" /> 오늘의 미션 제목
+              설정
             </label>
             <p className="mt-1 text-sm text-gray-500">
               오늘의 미션 페이지에 표시될 제목입니다.
@@ -151,12 +149,12 @@ const AccountSettings: React.FC = () => {
           <div className="mb-6">
             <label
               htmlFor="pinCode"
-              className="block text-sm font-medium text-gray-700 mb-2 flex items-center"
-            >
+              className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
               <LuKey className="mr-2" /> PIN 코드 (4자리)
             </label>
             <p className="mt-1 text-sm text-gray-500">
-              오늘의 미션 설정 페이지에 접근할 때 필요한 PIN 코드입니다.
+              오늘의 미션 설정 페이지에 접근할 때 필요한 PIN
+              코드입니다.
             </p>
             <input
               type="text"
@@ -172,8 +170,7 @@ const AccountSettings: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+              className="flex items-center px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? (
                 <span className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
               ) : (

@@ -22,9 +22,9 @@ const Sidebar: React.FC = () => {
   // 교사용 메뉴
   const teacherMenuItems = [
     {
-      path: "/teacher/dashboard",
-      name: "오늘의 미션",
-      icon: LuLayoutDashboard,
+      path: "/teacher/statistics",
+      name: "통계",
+      icon: LuTrendingUp,
     },
     {
       path: "/teacher/hall-of-fame",
@@ -46,11 +46,6 @@ const Sidebar: React.FC = () => {
       name: "학생 관리",
       icon: LuUsers,
     },
-    {
-      path: "/teacher/statistics",
-      name: "통계",
-      icon: LuTrendingUp,
-    },
   ];
 
   // 학생용 메뉴
@@ -62,7 +57,7 @@ const Sidebar: React.FC = () => {
     },
     {
       path: "/student/hall-of-fame",
-      name: "나의 성과",
+      name: "명예의 전당",
       icon: LuAward,
     },
   ];
