@@ -245,10 +245,6 @@ const AppContent: React.FC = () => {
           path="students"
           element={<TeacherStudentsPage />}
         />
-        <Route
-          path="statistics"
-          element={<TeacherStatisticsPage />}
-        />
       </Route>
 
       {/* 학생 라우트 */}

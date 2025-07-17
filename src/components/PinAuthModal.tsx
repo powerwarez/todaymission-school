@@ -1,53 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { LuX, LuKey } from "react-icons/lu";
+import { LuX, LuKey, LuTriangle } from "react-icons/lu";
 
 interface PinAuthModalProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-interface UserInfo {
-  pin_code: string | null;
-  child_name: string | null;
-}
-
 const PinAuthModal: React.FC<PinAuthModalProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const { user, userProfile } = useAuth();
+  const { userProfile } = useAuth();
   const [pin, setPin] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(
-    null
-  );
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isDefaultPin, setIsDefaultPin] =
+    useState<boolean>(false);
 
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      if (!user) return;
-
-      setLoading(true);
-
-      // TODO: PIN 코드 기능을 위한 별도 테이블 필요
-      // 현재는 임시로 userProfile 사용
-      if (userProfile) {
-        setUserInfo({
-          pin_code: null, // PIN 코드 없음
-          child_name: userProfile.name,
-        });
-      } else {
-        setError(
-          "사용자 정보를 가져오는 중 오류가 발생했습니다."
-        );
-      }
-
+    if (userProfile) {
+      // PIN이 0000(정수로 0)인지 확인
+      setIsDefaultPin(
+        userProfile.pin_code === 0 || !userProfile.pin_code
+      );
       setLoading(false);
-    };
-
-    fetchUserInfo();
-  }, [user]);
+    }
+  }, [userProfile]);
 
   const handlePinChange = (
     e: React.ChangeEvent<HTMLInputElement>
@@ -68,7 +47,12 @@ const PinAuthModal: React.FC<PinAuthModalProps> = ({
       return;
     }
 
-    if (userInfo && pin === userInfo.pin_code) {
+    // 데이터베이스의 PIN과 비교 (숫자를 4자리 문자열로 변환)
+    const dbPin =
+      userProfile?.pin_code?.toString().padStart(4, "0") ||
+      "0000";
+
+    if (pin === dbPin) {
       onSuccess();
     } else {
       setError("올바르지 않은 PIN입니다.");
@@ -102,9 +86,28 @@ const PinAuthModal: React.FC<PinAuthModalProps> = ({
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
+              {isDefaultPin && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded-lg flex items-start">
+                  <LuTriangle
+                    className="text-yellow-600 mr-2 mt-0.5 flex-shrink-0"
+                    size={20}
+                  />
+                  <div className="text-sm">
+                    <p className="font-semibold text-yellow-800 mb-1">
+                      기본 PIN 코드 사용 중
+                    </p>
+                    <p className="text-yellow-700">
+                      현재 기본 PIN 코드(0000)를 사용하고
+                      있습니다. 보안을 위해 계정 설정에서
+                      PIN을 변경하시기 바랍니다.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <p className="text-gray-600 mb-4">
-                {userInfo?.child_name || "아이"} 설정
-                페이지에 접근하기 위해 PIN을 입력해주세요.
+                {userProfile?.name || "아이"} 설정 페이지에
+                접근하기 위해 PIN을 입력해주세요.
               </p>
 
               <div className="mb-4">

@@ -7,16 +7,18 @@ import { DailyMissionSnapshot } from "../types"; // 타입 정의 필요
 
 // 파라미터 타입을 string으로 변경
 export const useDailySnapshot = (formattedDate: string) => {
-  const { user } = useAuth();
+  const { userProfile } = useAuth(); // userProfile 추가
   const [snapshot, setSnapshot] =
     useState<DailyMissionSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   // 내부 formatDate 호출 제거
 
   const fetchSnapshot = useCallback(async () => {
-    if (!user || !formattedDate) {
+    if (!userProfile || !formattedDate) {
+      // user 체크 제거
+      // userProfile 체크 추가
       // formattedDate 유효성 검사 추가
       setSnapshot(null);
       setLoading(false);
@@ -29,7 +31,7 @@ export const useDailySnapshot = (formattedDate: string) => {
       const { data, error: fetchError } = await supabase
         .from("daily_snapshots")
         .select("*")
-        .eq("student_id", user.id)
+        .eq("student_id", userProfile.id) // user.id -> userProfile.id
         .eq("snapshot_date", formattedDate)
         .maybeSingle(); // 결과가 없거나 하나일 수 있음
 
@@ -46,7 +48,7 @@ export const useDailySnapshot = (formattedDate: string) => {
       setLoading(false);
     }
     // 의존성 배열에 user와 formattedDate 추가
-  }, [user, formattedDate]);
+  }, [userProfile, formattedDate]); // user 제거
 
   useEffect(() => {
     fetchSnapshot();

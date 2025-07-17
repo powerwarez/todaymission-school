@@ -95,3 +95,8 @@ try {
 }
 
 export { supabase };
+
+// Supabase URL을 가져오는 헬퍼 함수
+export function getSupabaseUrl(): string {
+  return supabaseUrl || "";
+}

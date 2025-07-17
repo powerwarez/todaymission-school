@@ -89,6 +89,7 @@ const TeacherOnboardingPage: React.FC = () => {
     } catch (err) {
       console.error("Error creating school:", err);
       setError("학교 등록 중 오류가 발생했습니다.");
+    } finally {
       setLoading(false);
     }
   };

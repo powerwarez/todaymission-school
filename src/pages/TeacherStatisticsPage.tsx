@@ -59,13 +59,35 @@ const TeacherStatisticsPage: React.FC = () => {
   });
 
   useEffect(() => {
+    console.log(
+      "TeacherStatisticsPage - userProfile:",
+      userProfile
+    );
+    console.log(
+      "TeacherStatisticsPage - selectedPeriod:",
+      selectedPeriod
+    );
+
     if (userProfile?.id) {
       fetchStatistics();
+    } else {
+      setLoading(false);
     }
   }, [userProfile, selectedPeriod]);
 
   const fetchStatistics = async () => {
-    if (!userProfile?.id || !userProfile?.school_id) return;
+    console.log("fetchStatistics - Starting with:", {
+      userId: userProfile?.id,
+      schoolId: userProfile?.school_id,
+    });
+
+    if (!userProfile?.id || !userProfile?.school_id) {
+      console.log(
+        "fetchStatistics - Missing required data, stopping"
+      );
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {

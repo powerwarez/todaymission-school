@@ -25,7 +25,7 @@ interface BadgeJoinResult {
 export const useEarnedBadges = (
   badgeType?: "mission" | "weekly"
 ) => {
-  const { user } = useAuth();
+  const { userProfile } = useAuth(); // user 대신 userProfile 사용
   const [earnedBadges, setEarnedBadges] = useState<
     EarnedBadge[]
   >([]);
@@ -33,7 +33,10 @@ export const useEarnedBadges = (
   const [error, setError] = useState<string | null>(null);
 
   const fetchEarnedBadges = useCallback(async () => {
-    if (!user) {
+    if (!userProfile) {
+      console.log(
+        "[useEarnedBadges] No userProfile, skipping fetch"
+      );
       setEarnedBadges([]);
       setLoading(false);
       return;
@@ -65,7 +68,7 @@ export const useEarnedBadges = (
           )
         `
         )
-        .eq("student_id", user.id);
+        .eq("student_id", userProfile.id); // user.id -> userProfile.id
 
       // 배지 유형에 따른 필터링
       if (badgeType) {
@@ -125,7 +128,7 @@ export const useEarnedBadges = (
     } finally {
       setLoading(false);
     }
-  }, [user, badgeType]);
+  }, [userProfile, badgeType]); // user -> userProfile
 
   useEffect(() => {
     fetchEarnedBadges();

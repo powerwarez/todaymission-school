@@ -64,7 +64,7 @@ interface PartialSnapshot {
 }
 
 export const useWeeklyCompletionStatus = () => {
-  const { user } = useAuth();
+  const { userProfile, timeZone } = useAuth();
   const { showBadgeNotification } = useNotification();
   const [weekStatus, setWeekStatus] = useState<
     WeekdayStatus[]
@@ -106,7 +106,7 @@ export const useWeeklyCompletionStatus = () => {
   const checkWeeklyStreak = useCallback(
     async (weeklyStatus: WeekdayStatus[]) => {
       if (
-        !user ||
+        !userProfile ||
         weeklyStreakRewarded ||
         weeklyStreakAchieved
       )
@@ -186,7 +186,7 @@ export const useWeeklyCompletionStatus = () => {
           } = await supabase
             .from("earned_badges")
             .select("id, badge_id, earned_date")
-            .eq("student_id", user.id)
+            .eq("student_id", userProfile.id)
             .gte(
               "earned_date",
               format(mondayStart, "yyyy-MM-dd")
@@ -228,7 +228,7 @@ export const useWeeklyCompletionStatus = () => {
       }
     },
     [
-      user,
+      userProfile,
       monday,
       weeklyStreakAchieved,
       weeklyStreakRewarded,
@@ -240,7 +240,7 @@ export const useWeeklyCompletionStatus = () => {
   const isProcessing = useRef(false);
 
   const fetchWeeklyStatus = useCallback(async () => {
-    if (!user || isProcessing.current) return;
+    if (!userProfile || isProcessing.current) return;
 
     isProcessing.current = true;
     setLoading(true);
@@ -252,7 +252,7 @@ export const useWeeklyCompletionStatus = () => {
         await supabase
           .from("daily_snapshots")
           .select("*")
-          .eq("student_id", user.id)
+          .eq("student_id", userProfile.id)
           .gte("snapshot_date", formattedMonday)
           .lte("snapshot_date", formattedFriday)
           .order("snapshot_date", { ascending: true });
@@ -264,7 +264,7 @@ export const useWeeklyCompletionStatus = () => {
         await supabase
           .from("mission_logs")
           .select("mission_id, completed_at")
-          .eq("student_id", user.id)
+          .eq("student_id", userProfile.id)
           .gte(
             "completed_at",
             `${formattedMonday}T00:00:00`
@@ -414,13 +414,13 @@ export const useWeeklyCompletionStatus = () => {
       setLoading(false);
       isProcessing.current = false;
     }
-  }, [user, formattedMonday, formattedFriday]);
+  }, [formattedMonday, formattedFriday, userProfile]);
 
   useEffect(() => {
-    if (user) {
+    if (userProfile) {
       fetchWeeklyStatus();
     }
-  }, [user, formattedMonday, formattedFriday]);
+  }, [userProfile, formattedMonday, formattedFriday]);
 
   return {
     weekStatus,

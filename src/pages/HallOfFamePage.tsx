@@ -31,6 +31,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import toast from "react-hot-toast";
 import { supabase } from "../lib/supabaseClient";
+import { getSupabaseUrl } from "../lib/supabaseClient";
 import { BadgeSelectionModal } from "../components/BadgeSelectionModal";
 
 // 시간대 설정 (AuthContext에서 사용하는 값으로 대체)
@@ -249,13 +250,14 @@ const HallOfFamePage: React.FC = () => {
     if (imagePath.startsWith("http")) {
       return imagePath.replace(/([^:]\/)\/+/g, "$1");
     }
-    const supabaseUrl = supabase.supabaseUrl;
+    // Supabase Storage Public URL 직접 구성
+    const projectUrl = getSupabaseUrl();
     const bucketName = "badges";
     const cleanRelativePath = imagePath.replace(
       /^\/+|\/+$/g,
       ""
     );
-    return `${supabaseUrl}/storage/v1/object/public/${bucketName}/${cleanRelativePath}`;
+    return `${projectUrl}/storage/v1/object/public/${bucketName}/${cleanRelativePath}`;
   };
 
   // 보상 표시 관련 상태 추가
@@ -342,12 +344,12 @@ const HallOfFamePage: React.FC = () => {
   // 미선택 배지 관련 상태 추가
   const [pendingWeeklyBadges, setPendingWeeklyBadges] =
     useState<
-      {
+      Array<{
         id: string;
         earned_at: string;
-        reward_text?: string;
+        reward_text?: string | null;
         formatted_date?: string;
-      }[]
+      }>
     >([]);
   const [
     showBadgeSelectionModal,
@@ -649,7 +651,12 @@ const HallOfFamePage: React.FC = () => {
       );
 
       // 3. 미선택 배지 확인 (주 단위로 처리)
-      const pendingBadges = [];
+      const pendingBadges: Array<{
+        id: string;
+        earned_at: string;
+        reward_text: string | null;
+        formatted_date: string;
+      }> = [];
 
       for (const weeklyBadge of weeklyStreakBadges) {
         const earnedDate = new Date(

@@ -34,15 +34,34 @@ const TeacherStudentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showCreateModal, setShowCreateModal] =
     useState(false);
-  const [newStudents, setNewStudents] = useState<
-    StudentCreationResult[]
-  >([]);
+  const [schoolName, setSchoolName] = useState<string>("");
 
   useEffect(() => {
     if (userProfile?.id) {
       fetchStudents();
+      if (userProfile.school_id) {
+        fetchSchoolName();
+      }
     }
   }, [userProfile]);
+
+  const fetchSchoolName = async () => {
+    if (!userProfile?.school_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("schools")
+        .select("name")
+        .eq("id", userProfile.school_id)
+        .single();
+
+      if (data && !error) {
+        setSchoolName(data.name);
+      }
+    } catch (err) {
+      console.error("Error fetching school:", err);
+    }
+  };
 
   const fetchStudents = async () => {
     if (!userProfile?.id) return;
@@ -69,7 +88,6 @@ const TeacherStudentsPage: React.FC = () => {
   const handleStudentCreated = (
     createdStudents: StudentCreationResult[]
   ) => {
-    setNewStudents(createdStudents);
     fetchStudents();
     toast.success(
       `${createdStudents.length}명의 학생 계정이 생성되었습니다.`
@@ -105,13 +123,18 @@ const TeacherStudentsPage: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          {newStudents.length > 0 &&
-            userProfile?.school && (
-              <StudentQRCodesPDF
-                students={newStudents}
-                schoolName={userProfile.school.name}
-              />
-            )}
+          {students.length > 0 && schoolName && (
+            <StudentQRCodesPDF
+              students={students
+                .filter((student) => student.qr_token) // QR 토큰이 있는 학생만
+                .map((student) => ({
+                  student_id: student.id,
+                  student_name: student.name,
+                  qr_token: student.qr_token!,
+                }))}
+              schoolName={schoolName}
+            />
+          )}
           <Button onClick={() => setShowCreateModal(true)}>
             <UserPlus className="mr-2 h-4 w-4" />
             학생 추가
@@ -193,14 +216,19 @@ const TeacherStudentsPage: React.FC = () => {
       )}
 
       {/* Create Students Modal */}
-      {userProfile && (
+      {userProfile && userProfile.school_id && (
         <CreateStudentsModal
           open={showCreateModal}
           onOpenChange={setShowCreateModal}
           teacherId={userProfile.id}
-          schoolId={userProfile.school_id!}
+          schoolId={userProfile.school_id}
           onSuccess={handleStudentCreated}
         />
+      )}
+      {showCreateModal && !userProfile?.school_id && (
+        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          학교 정보가 없습니다. 먼저 학교를 설정해주세요.
+        </div>
       )}
     </div>
   );

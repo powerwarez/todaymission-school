@@ -80,6 +80,7 @@ export interface UserProfile {
   auth_provider?: "kakao" | "qr";
   auth_uid?: string;
   qr_token?: string;
+  pin_code?: number; // PIN 코드 추가
   created_at: string;
   updated_at: string;
   school?: School;

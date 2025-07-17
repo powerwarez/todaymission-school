@@ -93,7 +93,7 @@ const TodayMissionPage: React.FC = () => {
   useEffect(() => {
     // 사용자 로드 완료, 미션 로드 완료, 아직 스냅샷 확인 전, 중복 실행 중 아닐 때만 실행
     if (
-      user &&
+      userProfile &&
       !missionsLoading &&
       !snapshotChecked &&
       !isSnapshotCheckRunning.current
@@ -118,17 +118,17 @@ const TodayMissionPage: React.FC = () => {
 
           // 1. 오늘 날짜(KST)의 스냅샷 확인
           console.log(
-            `[Snapshot Check] Checking for snapshot on ${formattedTodayKST} for user ${user.id}`
+            `[Snapshot Check] Checking for snapshot on ${formattedTodayKST} for user ${userProfile.id}`
           );
           const {
             data: existingSnapshot,
             error: checkError,
           } = await supabase
-            .from("daily_mission_snapshots")
+            .from("daily_snapshots")
             .select("id", { count: "exact" }) // count만 가져와도 됨
-            .eq("user_id", user.id)
+            .eq("student_id", userProfile.id)
             // KST 기준 날짜 문자열로 비교
-            .eq("date", formattedTodayKST)
+            .eq("snapshot_date", formattedTodayKST)
             .limit(1); // 하나만 찾으면 됨
 
           if (checkError) throw checkError;
@@ -142,14 +142,13 @@ const TodayMissionPage: React.FC = () => {
               `[Snapshot Create] No existing snapshot found. Creating for ${formattedTodayKST}`
             );
             const { error: insertError } = await supabase
-              .from("daily_mission_snapshots")
+              .from("daily_snapshots")
               .insert({
-                user_id: user.id,
+                student_id: userProfile.id,
                 // KST 기준 날짜 문자열 사용
-                date: formattedTodayKST,
-                missions_snapshot: missions,
-                total_missions_count: missions.length,
-                completed_missions_count: 0,
+                snapshot_date: formattedTodayKST,
+                missions: missions,
+                completed_missions: [],
               });
 
             if (insertError) throw insertError;
@@ -177,7 +176,7 @@ const TodayMissionPage: React.FC = () => {
     }
     // 의존성 배열에 formattedTodayKST 추가
   }, [
-    user,
+    userProfile,
     missionsLoading,
     snapshotChecked,
     formattedTodayKST,

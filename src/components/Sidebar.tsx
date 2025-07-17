@@ -22,7 +22,7 @@ const Sidebar: React.FC = () => {
   // 교사용 메뉴
   const teacherMenuItems = [
     {
-      path: "/teacher/statistics",
+      path: "/teacher/dashboard",
       name: "통계",
       icon: LuTrendingUp,
     },

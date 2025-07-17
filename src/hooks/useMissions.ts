@@ -12,29 +12,38 @@ export const useMissions = () => {
   const fetchMissions = useCallback(async () => {
     // 프로필이 없으면 미션을 조회하지 않음
     if (!userProfile) {
+      console.log(
+        "[useMissions] No userProfile, skipping fetch"
+      );
       setMissions([]);
       setLoading(false);
       return;
     }
 
-    // school_id 결정: 교사는 직접, 학생은 teacher의 school_id 사용
+    // school_id 결정: 교사는 직접 school_id 사용, 학생은 자신의 school_id 사용
     let schoolId: string | null = null;
     if (isTeacher && userProfile.school_id) {
       schoolId = userProfile.school_id;
-    } else if (
-      !isTeacher &&
-      userProfile.teacher?.school_id
-    ) {
-      schoolId = userProfile.teacher.school_id;
+    } else if (!isTeacher && userProfile.school_id) {
+      // 학생도 school_id를 가지고 있음
+      schoolId = userProfile.school_id;
     }
 
     if (!schoolId) {
+      console.log("[useMissions] No schoolId found", {
+        isTeacher,
+        userProfile,
+        school_id: userProfile.school_id,
+      });
       setMissions([]);
       setLoading(false);
       return;
     }
 
-    console.log("[useMissions] Fetching missions...");
+    console.log(
+      "[useMissions] Fetching missions for school:",
+      schoolId
+    );
     setLoading(true);
     setError(null);
     try {
@@ -43,6 +52,11 @@ export const useMissions = () => {
         .select("*")
         .eq("school_id", schoolId)
         .order("order_index", { ascending: true });
+
+      console.log("[fetchMissions] DB response:", {
+        data,
+        error: fetchError,
+      });
 
       if (fetchError) throw fetchError;
 
@@ -53,6 +67,11 @@ export const useMissions = () => {
           content: mission.title, // title을 content로 매핑
           order: mission.order_index, // order_index를 order로 매핑
         })
+      );
+
+      console.log(
+        "[fetchMissions] Transformed data:",
+        transformedData
       );
 
       setMissions(transformedData);
@@ -72,27 +91,51 @@ export const useMissions = () => {
     content: string;
     order: number;
   }): Promise<Mission | null> => {
+    console.log("[addMission] Input data:", missionData);
     if (!userProfile || !isTeacher) return null;
     try {
+      const insertData = {
+        school_id: userProfile.school_id,
+        teacher_id: userProfile.id,
+        title: missionData.content,
+        order_index: missionData.order,
+      };
+      console.log(
+        "[addMission] DB insert data:",
+        insertData
+      );
+
       const { data, error: insertError } = await supabase
         .from("missions")
-        .insert({
-          school_id: userProfile.school_id,
-          teacher_id: userProfile.id,
-          title: missionData.content,
-          order_index: missionData.order,
-        })
+        .insert(insertData)
         .select()
         .single();
 
+      console.log("[addMission] DB response:", {
+        data,
+        error: insertError,
+      });
+
       if (insertError) throw insertError;
       if (data) {
+        // 데이터베이스 형태를 UI 형태로 변환
+        const transformedMission = {
+          ...data,
+          content: data.title, // title을 content로 매핑
+          order: data.order_index, // order_index를 order로 매핑
+        };
+
+        console.log(
+          "[addMission] Transformed mission:",
+          transformedMission
+        );
+
         setMissions((prev) =>
-          [...prev, data].sort(
-            (a, b) => a.order_index - b.order_index
+          [...prev, transformedMission].sort(
+            (a, b) => a.order - b.order
           )
         );
-        return data;
+        return transformedMission;
       }
       return null;
     } catch (err: unknown) {
