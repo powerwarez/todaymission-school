@@ -11,11 +11,15 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      // 디버깅: 현재 origin 확인
+      console.log("Current origin:", window.location.origin);
+      console.log("Redirect URL:", `${window.location.origin}/`);
+
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
-          // 필요시 리다이렉트 URL 지정
-          // redirectTo: window.location.origin,
+          // 동적으로 현재 도메인 기반 리다이렉트 URL 설정
+          redirectTo: `${window.location.origin}/`,
         },
       });
       if (signInError) throw signInError;
