@@ -72,8 +72,23 @@ const HallOfFamePage: React.FC = () => {
   } = useMissionLogs(formattedSelectedDate);
 
   // --- 월별 달력 관련 --- //
-  const currentYear = currentMonthDate.getUTCFullYear();
-  const currentMonth = currentMonthDate.getUTCMonth() + 1;
+  // currentMonthDate를 Luxon DateTime으로 변환하여 년도와 월 추출
+  const currentDateTime = DateTime.fromJSDate(
+    currentMonthDate
+  ).setZone(timeZone || "Asia/Seoul");
+  const currentYear = currentDateTime.year;
+  const currentMonth = currentDateTime.month;
+  console.log(
+    `[HallOfFamePage] 현재 조회 중인 년월: ${currentYear}년 ${currentMonth}월`
+  );
+  console.log(
+    `[HallOfFamePage] currentMonthDate:`,
+    currentMonthDate
+  );
+  console.log(
+    `[HallOfFamePage] currentDateTime:`,
+    currentDateTime.toISO()
+  );
   const {
     snapshots: monthlySnapshots,
     loading: monthlySnapshotsLoading,
@@ -948,8 +963,8 @@ const HallOfFamePage: React.FC = () => {
                 </div>
               </div>
               <MonthlyCalendar
-                year={currentMonthDate.getUTCFullYear()}
-                month={currentMonthDate.getUTCMonth() + 1}
+                year={currentYear}
+                month={currentMonth}
                 snapshots={monthlySnapshots}
               />
             </div>

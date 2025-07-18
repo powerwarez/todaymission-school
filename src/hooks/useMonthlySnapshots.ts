@@ -67,6 +67,11 @@ export const useMonthlySnapshots = (
 
       if (fetchError) throw fetchError;
 
+      console.log(
+        "[useMonthlySnapshots] 원본 데이터:",
+        data
+      );
+
       // 데이터베이스 구조를 타입 정의에 맞게 변환
       const transformedData = (data || []).map(
         (snapshot) => ({
@@ -80,6 +85,11 @@ export const useMonthlySnapshots = (
             (snapshot.completed_missions as string[])
               ?.length || 0,
         })
+      );
+
+      console.log(
+        "[useMonthlySnapshots] 변환된 데이터:",
+        transformedData
       );
 
       setSnapshots(transformedData);

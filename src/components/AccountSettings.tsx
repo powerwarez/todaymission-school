@@ -111,16 +111,10 @@ const AccountSettings: React.FC = () => {
 
   return (
     <div
-      className="bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto"
+      className="bg-white rounded-lg shadow-md p-6"
       style={{
         borderColor: "var(--color-border-default)",
       }}>
-      <h2
-        className="text-2xl font-bold mb-6 flex items-center"
-        style={{ color: "var(--color-text-primary)" }}>
-        <LuUser className="mr-2" /> 계정 설정
-      </h2>
-
       {loading ? (
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500"></div>

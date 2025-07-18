@@ -11,6 +11,9 @@ import { useAuth } from "../contexts/AuthContext";
 export const useTheme = () => {
   const [currentTheme, setCurrentTheme] =
     useState<string>("summerSky");
+  const [previewTheme, setPreviewTheme] = useState<
+    string | null
+  >(null); // 미리보기 테마
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -83,19 +86,35 @@ export const useTheme = () => {
     initializeTheme();
   }, [userProfile]);
 
-  // 테마 저장 함수
-  const saveTheme = async (themeKey: string) => {
+  // 테마 미리보기 함수
+  const previewThemeFunc = (themeKey: string) => {
+    if (!themes[themeKey]) {
+      console.error(
+        `테마 '${themeKey}'를 찾을 수 없습니다.`
+      );
+      return;
+    }
+
+    setPreviewTheme(themeKey);
+    updateCSSVariables(themes[themeKey]);
+  };
+
+  // 테마 저장 함수 수정
+  const saveCurrentTheme = async () => {
+    if (!previewTheme) return;
+
     setIsSaving(true);
 
     try {
       // 로컬 스토리지에 먼저 저장
-      localStorage.setItem("app-theme", themeKey);
+      localStorage.setItem("app-theme", previewTheme);
+      setCurrentTheme(previewTheme);
 
       // 교사인 경우 데이터베이스에도 저장
       if (userProfile && userProfile.role === "teacher") {
         const { error } = await supabase
           .from("users")
-          .update({ theme: themeKey })
+          .update({ theme: previewTheme })
           .eq("id", userProfile.id);
 
         if (error) {
@@ -108,11 +127,23 @@ export const useTheme = () => {
       } else {
         toast.success("테마 설정이 저장되었습니다.");
       }
+
+      setPreviewTheme(null);
     } catch (err) {
       console.error("테마 저장 중 오류:", err);
       toast.error("테마 설정 저장에 실패했습니다.");
+      // 오류 발생 시 원래 테마로 복원
+      updateCSSVariables(themes[currentTheme]);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // 테마 변경 취소 함수
+  const cancelPreview = () => {
+    if (previewTheme) {
+      updateCSSVariables(themes[currentTheme]);
+      setPreviewTheme(null);
     }
   };
 
@@ -265,28 +296,18 @@ export const useTheme = () => {
     );
   };
 
-  // 테마 변경 함수
-  const setTheme = async (themeKey: string) => {
-    if (!themes[themeKey]) {
-      console.error(
-        `테마 '${themeKey}'를 찾을 수 없습니다.`
-      );
-      return;
-    }
-
-    setCurrentTheme(themeKey);
-    updateCSSVariables(themes[themeKey]);
-
-    // 테마 저장 (교사는 DB에도 저장)
-    await saveTheme(themeKey);
-  };
-
   return {
     currentTheme,
-    setTheme,
     themes,
     isLoading,
     isSaving,
     isInitialized,
+    previewTheme: previewTheme || currentTheme,
+    previewThemeFunc,
+    saveCurrentTheme,
+    cancelPreview,
+    hasChanges:
+      previewTheme !== null &&
+      previewTheme !== currentTheme,
   };
 };

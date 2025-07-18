@@ -1,6 +1,6 @@
 import React from "react";
 import { DailyMissionSnapshot } from "../types"; // MissionLog 대신 Snapshot 타입 사용
-import { formatInTimeZone } from "date-fns-tz"; // KST 포맷 함수 import
+import { DateTime } from "luxon"; // Luxon DateTime import
 
 // 시간대 정의
 const timeZone = "Asia/Seoul";
@@ -15,16 +15,25 @@ interface MonthlyCalendarProps {
 const processSnapshots = (
   snapshots: DailyMissionSnapshot[]
 ): Map<string, DailyMissionSnapshot> => {
-  const snapshotsByDate = new Map<string, DailyMissionSnapshot>();
+  console.log(
+    "[MonthlyCalendar] 받은 스냅샷 데이터:",
+    snapshots
+  );
+  const snapshotsByDate = new Map<
+    string,
+    DailyMissionSnapshot
+  >();
   snapshots.forEach((snapshot) => {
+    console.log(
+      `[MonthlyCalendar] 처리 중: ${snapshot.date}, 총 미션: ${snapshot.total_missions_count}, 완료: ${snapshot.completed_missions_count}`
+    );
     snapshotsByDate.set(snapshot.date, snapshot); // date는 이미 YYYY-MM-DD 형식
   });
+  console.log(
+    "[MonthlyCalendar] 처리된 날짜별 맵:",
+    Array.from(snapshotsByDate.entries())
+  );
   return snapshotsByDate;
-};
-
-// KST 기준 날짜 포맷 함수
-const formatDateKST = (date: Date): string => {
-  return formatInTimeZone(date, timeZone, "yyyy-MM-dd");
 };
 
 const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
@@ -32,22 +41,46 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   month,
   snapshots,
 }) => {
+  console.log(
+    `[MonthlyCalendar] 렌더링 - ${year}년 ${month}월, 스냅샷 개수: ${snapshots.length}`
+  );
   const snapshotsByDate = processSnapshots(snapshots);
-  // year, month는 UTC 기준 월의 1일을 나타내는 Date 객체에서 추출된 값
-  // Date.UTC로 날짜 계산 후 getUTCDate() 사용
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  // Date.UTC로 날짜 계산 후 getUTCDay() 사용
-  const firstDayOfMonth = new Date(Date.UTC(year, month - 1, 1)).getUTCDay(); // 0 (Sun) - 6 (Sat)
+  // Luxon을 사용하여 월의 일수와 첫날 요일 계산
+  const monthDateTime = DateTime.fromObject(
+    { year, month, day: 1 },
+    { zone: timeZone }
+  );
+  const daysInMonth = monthDateTime.daysInMonth || 0;
+  const firstDayOfMonth = monthDateTime.weekday % 7; // Luxon은 월요일이 1, 일요일이 7이므로 변환 필요
 
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const leadingEmptyDays = Array.from({ length: firstDayOfMonth });
+  const days = Array.from(
+    { length: daysInMonth },
+    (_, i) => i + 1
+  );
+  const leadingEmptyDays = Array.from({
+    length: firstDayOfMonth,
+  });
 
   const getDayStyle = (day: number) => {
     // 해당 날짜 칸의 KST 기준 날짜 문자열 생성
-    // Date.UTC를 사용하여 명확하게 UTC 자정 기준으로 Date 객체 생성 후 KST로 포맷
-    const dateObjForDay = new Date(Date.UTC(year, month - 1, day));
-    const dateStr = formatDateKST(dateObjForDay);
+    // Luxon을 사용하여 명확하게 KST 기준으로 날짜 생성
+    const dateTime = DateTime.fromObject(
+      { year, month, day },
+      { zone: timeZone }
+    );
+    const dateStr = dateTime.toFormat("yyyy-MM-dd");
     const snapshot = snapshotsByDate.get(dateStr);
+
+    if (day === 18) {
+      console.log(`[MonthlyCalendar] 18일 스타일 확인:`, {
+        dateStr,
+        snapshot,
+        hasSnapshot: !!snapshot,
+        totalMissions: snapshot?.total_missions_count,
+        completedMissions:
+          snapshot?.completed_missions_count,
+      });
+    }
 
     if (!snapshot || snapshot.total_missions_count === 0) {
       return {
@@ -56,7 +89,10 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
       }; // 스냅샷 없거나 총 미션 0개 (흐리게)
     }
 
-    const { completed_missions_count, total_missions_count } = snapshot;
+    const {
+      completed_missions_count,
+      total_missions_count,
+    } = snapshot;
 
     if (completed_missions_count === 0) {
       return {
@@ -66,8 +102,10 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     }
 
     const completionRate =
-      (completed_missions_count / total_missions_count) * 100;
-    const completionStyle = getCompletionStyle(completionRate);
+      (completed_missions_count / total_missions_count) *
+      100;
+    const completionStyle =
+      getCompletionStyle(completionRate);
 
     return {
       className: "",
@@ -77,15 +115,21 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
 
   const renderDay = (day: number) => {
     // 해당 날짜 칸의 KST 기준 날짜 문자열 생성
-    const dateObjForDay = new Date(Date.UTC(year, month - 1, day));
-    const dateStr = formatDateKST(dateObjForDay);
+    const dateTime = DateTime.fromObject(
+      { year, month, day },
+      { zone: timeZone }
+    );
+    const dateStr = dateTime.toFormat("yyyy-MM-dd");
     const snapshot = snapshotsByDate.get(dateStr);
 
     // 오늘 날짜 비교도 KST 기준으로
-    const todayStr = formatDateKST(new Date());
+    const todayStr = DateTime.now()
+      .setZone(timeZone)
+      .toFormat("yyyy-MM-dd");
     const isToday = dateStr === todayStr;
 
-    const completedCount = snapshot?.completed_missions_count ?? 0;
+    const completedCount =
+      snapshot?.completed_missions_count ?? 0;
     const totalCount = snapshot?.total_missions_count;
 
     const dayStyle = getDayStyle(day);
@@ -103,13 +147,14 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                 boxShadow: `0 0 0 2px var(--color-primary-medium)`,
               }
             : {}),
-        }}
-      >
+        }}>
         <span className="text-sm font-medium">{day}</span>
         {/* 스냅샷이 있고 총 미션 수가 0보다 클 때만 카운트 표시 */}
-        {snapshot && totalCount !== undefined && totalCount > 0 && (
-          <span className="text-xs mt-1">{`${completedCount}/${totalCount}`}</span>
-        )}
+        {snapshot &&
+          totalCount !== undefined &&
+          totalCount > 0 && (
+            <span className="text-xs mt-1">{`${completedCount}/${totalCount}`}</span>
+          )}
         {/* 스냅샷은 없지만 날짜는 있는 경우 (미래 날짜 등) 빈 칸 유지 */}
       </div>
     );
@@ -154,7 +199,9 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {leadingEmptyDays.map((_, index) => (
-          <div key={`empty-${index}`} className="h-16"></div>
+          <div
+            key={`empty-${index}`}
+            className="h-16"></div>
         ))}
         {days.map((day) => renderDay(day))}
       </div>
