@@ -135,60 +135,42 @@ const QRCodeDocument: React.FC<{
 }> = ({ students, schoolName, qrCodes }) => (
   <Document>
     {students.map((student) => (
-      <Page
-        key={student.student_id}
-        size="A4"
-        style={styles.page}>
+      <Page key={student.student_id} size="A4" style={styles.page}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.schoolName}>
-              {schoolName}
-            </Text>
-            <Text style={styles.subtitle}>
-              오늘의 미션 로그인
-            </Text>
+            <Text style={styles.schoolName}>{schoolName}</Text>
+            <Text style={styles.subtitle}>오늘의 미션 로그인</Text>
           </View>
 
           <View style={styles.qrCodeContainer}>
-            <Text style={styles.studentName}>
-              {student.student_name}
-            </Text>
+            <Text style={styles.studentName}>{student.student_name}</Text>
             {qrCodes[student.student_id] && (
-              <Image
-                style={styles.qrCode}
-                src={qrCodes[student.student_id]}
-              />
+              <Image style={styles.qrCode} src={qrCodes[student.student_id]} />
             )}
             <Text style={styles.qrToken}>
-              로그인 코드:{" "}
-              {student.qr_token.substring(0, 8)}...
+              로그인 코드: {student.qr_token.substring(0, 8)}...
             </Text>
           </View>
 
           <View style={styles.instructions}>
-            <Text style={styles.instructionTitle}>
-              로그인 방법
+            <Text style={styles.instructionTitle}>로그인 방법</Text>
+            <Text style={styles.instructionText}>
+              1. 태블릿으로 위의 QR 코드를 스캔하세요.
             </Text>
             <Text style={styles.instructionText}>
-              1. 스마트폰으로 위의 QR 코드를 스캔하세요.
-            </Text>
-            <Text style={styles.instructionText}>
-              2. 또는 "오늘의 미션" 사이트에서 QR 로그인을
-              선택하세요.
+              2. 또는 "오늘의 미션" 사이트에서 QR 로그인을 선택하세요.
             </Text>
             <Text style={styles.instructionText}>
               3. 카메라가 열리면 위의 QR 코드를 비춰주세요.
             </Text>
             <Text style={styles.instructionText}>
-              4. 로그인이 완료되면 오늘의 미션을 확인할 수
-              있어요!
+              4. 로그인이 완료되면 오늘의 미션을 확인할 수 있어요!
             </Text>
           </View>
 
           <View style={styles.warning}>
             <Text style={styles.warningText}>
-              ⚠️ 이 QR 코드는 본인만 사용하세요. 다른 친구와
-              공유하지 마세요!
+              ⚠️ 이 QR 코드는 본인만 사용하세요. 다른 친구와 공유하지 마세요!
             </Text>
           </View>
         </View>
@@ -197,9 +179,10 @@ const QRCodeDocument: React.FC<{
   </Document>
 );
 
-const StudentQRCodesPDF: React.FC<
-  StudentQRCodesPDFProps
-> = ({ students, schoolName }) => {
+const StudentQRCodesPDF: React.FC<StudentQRCodesPDFProps> = ({
+  students,
+  schoolName,
+}) => {
   const [qrCodes, setQrCodes] = React.useState<{
     [key: string]: string;
   }>({});
@@ -216,17 +199,14 @@ const StudentQRCodesPDF: React.FC<
             student_name: student.student_name,
           });
 
-          const qrCodeDataURL = await QRCode.toDataURL(
-            qrData,
-            {
-              width: 300,
-              margin: 2,
-              color: {
-                dark: "#000000",
-                light: "#ffffff",
-              },
-            }
-          );
+          const qrCodeDataURL = await QRCode.toDataURL(qrData, {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: "#000000",
+              light: "#ffffff",
+            },
+          });
 
           codes[student.student_id] = qrCodeDataURL;
         } catch (err) {
@@ -261,13 +241,12 @@ const StudentQRCodesPDF: React.FC<
           qrCodes={qrCodes}
         />
       }
-      fileName={`${schoolName}_학생_QR코드.pdf`}>
+      fileName={`${schoolName}_학생_QR코드.pdf`}
+    >
       {({ loading }) => (
         <Button disabled={loading}>
           <Download className="mr-2 h-4 w-4" />
-          {loading
-            ? "PDF 생성 중..."
-            : "QR 코드 PDF 다운로드"}
+          {loading ? "PDF 생성 중..." : "QR 코드 PDF 다운로드"}
         </Button>
       )}
     </PDFDownloadLink>
