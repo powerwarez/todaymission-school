@@ -5,11 +5,7 @@ import React, {
   useContext,
   ReactNode,
 } from "react";
-import {
-  Session,
-  User,
-  AuthChangeEvent,
-} from "@supabase/supabase-js";
+import { Session, User, AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 import { UserProfile } from "../types/index";
 
@@ -24,29 +20,20 @@ interface AuthContextType {
   loginWithQR: (
     qrToken: string
   ) => Promise<{ success: boolean; error?: string }>;
-  updateUserProfile: (
-    updates: Partial<UserProfile>
-  ) => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   timeZone: string;
 }
 
-const AuthContext = createContext<
-  AuthContextType | undefined
->(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({
-  children,
-}) => {
-  const [session, setSession] = useState<Session | null>(
-    null
-  );
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] =
-    useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const timeZone = "Asia/Seoul";
 
@@ -56,24 +43,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     if (!authUser) return null;
 
     try {
-      console.log(
-        "Fetching user profile for auth_uid:",
-        authUser.id
-      );
+      console.log("Fetching user profile for auth_uid:", authUser.id);
 
       // 먼저 기본 사용자 정보를 가져옵니다
-      const { data: userData, error: userError } =
-        await supabase
-          .from("users")
-          .select("*")
-          .eq("auth_uid", authUser.id)
-          .single();
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("auth_uid", authUser.id)
+        .single();
 
       if (userError) {
-        console.error(
-          "Error fetching user profile:",
-          userError
-        );
+        console.error("Error fetching user profile:", userError);
         return null;
       }
 
@@ -83,16 +63,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
       // 교사인 경우 school 정보를 별도로 가져옵니다
       let schoolData = null;
-      if (
-        userData.role === "teacher" &&
-        userData.school_id
-      ) {
-        const { data: school, error: schoolError } =
-          await supabase
-            .from("schools")
-            .select("*")
-            .eq("id", userData.school_id)
-            .single();
+      if (userData.role === "teacher" && userData.school_id) {
+        const { data: school, error: schoolError } = await supabase
+          .from("schools")
+          .select("*")
+          .eq("id", userData.school_id)
+          .single();
 
         if (!schoolError && school) {
           schoolData = school;
@@ -101,16 +77,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
       // 학생인 경우 teacher 정보를 별도로 가져옵니다
       let teacherData = null;
-      if (
-        userData.role === "student" &&
-        userData.teacher_id
-      ) {
-        const { data: teacher, error: teacherError } =
-          await supabase
-            .from("users")
-            .select("*")
-            .eq("id", userData.teacher_id)
-            .single();
+      if (userData.role === "student" && userData.teacher_id) {
+        const { data: teacher, error: teacherError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", userData.teacher_id)
+          .single();
 
         if (!teacherError && teacher) {
           teacherData = teacher;
@@ -124,10 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         teacher: teacherData,
       };
 
-      console.log(
-        "User profile fetched:",
-        userWithRelations
-      );
+      console.log("User profile fetched:", userWithRelations);
       return userWithRelations;
     } catch (err) {
       console.error("Failed to fetch user profile:", err);
@@ -144,10 +113,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         .single();
 
       if (error) {
-        console.error(
-          "Error fetching student profile:",
-          error
-        );
+        console.error("Error fetching student profile:", error);
         return null;
       }
 
@@ -183,10 +149,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         teacher: teacherData,
       };
     } catch (err) {
-      console.error(
-        "Failed to fetch student profile:",
-        err
-      );
+      console.error("Failed to fetch student profile:", err);
       return null;
     }
   };
@@ -206,9 +169,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
         if (qrTokenCookie) {
           const qrToken = qrTokenCookie.split("=")[1];
-          const profile = await fetchStudentProfile(
-            qrToken
-          );
+          const profile = await fetchStudentProfile(qrToken);
           if (profile) {
             setUserProfile(profile);
             setLoading(false);
@@ -231,9 +192,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         if (session) {
           setSession(session);
           setUser(session.user);
-          const profile = await fetchUserProfile(
-            session.user
-          );
+          const profile = await fetchUserProfile(session.user);
           if (profile) {
             setUserProfile(profile);
           }
@@ -243,10 +202,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
         // Setup auth state listener
         const { data } = supabase.auth.onAuthStateChange(
-          async (
-            _event: AuthChangeEvent,
-            session: Session | null
-          ) => {
+          async (_event: AuthChangeEvent, session: Session | null) => {
             console.log("Auth state changed:", _event);
             console.log("Session:", session?.user?.id);
 
@@ -254,9 +210,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
             if (_event !== "SIGNED_OUT" && session) {
               setSession(session);
               setUser(session.user);
-              const profile = await fetchUserProfile(
-                session.user
-              );
+              const profile = await fetchUserProfile(session.user);
               if (profile) {
                 setUserProfile(profile);
               } else if (
@@ -264,17 +218,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
                 _event === "USER_UPDATED"
               ) {
                 // 토큰이 갱신되거나 사용자가 업데이트된 경우는 프로필이 없어도 정상
-                console.log(
-                  "Token refreshed or user updated without profile"
-                );
+                console.log("Token refreshed or user updated without profile");
               } else {
                 // 새로운 사용자인 경우
                 setUserProfile(null);
               }
             } else if (_event === "SIGNED_OUT") {
-              console.log(
-                "User signed out, clearing state"
-              );
+              console.log("User signed out, clearing state");
               setSession(null);
               setUser(null);
               setUserProfile(null);
@@ -308,13 +258,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         setUser(null);
         setSession(null);
       } else {
+        // 교사 로그아웃
         const { error } = await supabase.auth.signOut();
         if (error) {
           console.error("Error logging out:", error);
+          throw error;
         }
+
+        // 상태 초기화
+        setSession(null);
+        setUser(null);
+        setUserProfile(null);
       }
     } catch (err) {
       console.error("Failed to sign out:", err);
+      throw err; // 에러를 상위로 전달
     }
   };
 
@@ -350,9 +308,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     }
   };
 
-  const updateUserProfile = async (
-    updates: Partial<UserProfile>
-  ) => {
+  const updateUserProfile = async (updates: Partial<UserProfile>) => {
     if (!userProfile) return;
 
     try {
@@ -362,10 +318,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         .eq("id", userProfile.id);
 
       if (error) {
-        console.error(
-          "Error updating user profile:",
-          error
-        );
+        console.error("Error updating user profile:", error);
         return;
       }
 
@@ -388,19 +341,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     timeZone,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error(
-      "useAuth must be used within an AuthProvider"
-    );
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

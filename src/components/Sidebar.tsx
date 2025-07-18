@@ -74,17 +74,29 @@ const Sidebar: React.FC = () => {
 
   const handleLogout = async () => {
     try {
+      console.log("Logging out...", { isTeacher, isStudent, userProfile });
+
       await logout();
-      // 로그아웃 후 적절한 페이지로 리다이렉트
+
+      // 로그아웃 성공 후 리다이렉트
+      // window.location.href 대신 replace 사용하여 뒤로가기 방지
       if (isTeacher) {
-        window.location.href = "/teacher/login";
+        window.location.replace("/teacher/login");
       } else if (isStudent) {
-        window.location.href = "/student/login";
+        window.location.replace("/student/login");
       } else {
-        window.location.href = "/";
+        window.location.replace("/");
       }
     } catch (error) {
       console.error("Logout failed:", error);
+      // 에러가 발생해도 로그인 페이지로 이동 시도
+      if (isTeacher) {
+        window.location.replace("/teacher/login");
+      } else if (isStudent) {
+        window.location.replace("/student/login");
+      } else {
+        window.location.replace("/");
+      }
     }
   };
 
