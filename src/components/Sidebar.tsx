@@ -15,28 +15,18 @@ import { useAuth } from "../contexts/AuthContext";
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { logout, isTeacher, isStudent, userProfile } =
-    useAuth();
+  const { logout, isTeacher, isStudent, userProfile } = useAuth();
   const [isMinimized, setIsMinimized] = useState(false);
 
   // 디버깅용 로그
   if (isStudent && userProfile) {
     console.log("학생 프로필 전체:", userProfile);
-    console.log(
-      "teacher 타입:",
-      typeof userProfile.teacher
-    );
+    console.log("teacher 타입:", typeof userProfile.teacher);
     console.log("teacher 값:", userProfile.teacher);
     if (Array.isArray(userProfile.teacher)) {
-      console.log(
-        "teacher는 배열입니다. 길이:",
-        userProfile.teacher.length
-      );
+      console.log("teacher는 배열입니다. 길이:", userProfile.teacher.length);
       if (userProfile.teacher.length > 0) {
-        console.log(
-          "첫 번째 teacher:",
-          userProfile.teacher[0]
-        );
+        console.log("첫 번째 teacher:", userProfile.teacher[0]);
       }
     }
   }
@@ -47,11 +37,6 @@ const Sidebar: React.FC = () => {
       path: "/teacher/dashboard",
       name: "통계",
       icon: LuTrendingUp,
-    },
-    {
-      path: "/teacher/hall-of-fame",
-      name: "명예의 전당",
-      icon: LuAward,
     },
     {
       path: "/teacher/mission-settings",
@@ -85,9 +70,7 @@ const Sidebar: React.FC = () => {
   ];
 
   // 현재 사용자 역할에 따른 메뉴 선택
-  const menuItems = isTeacher
-    ? teacherMenuItems
-    : studentMenuItems;
+  const menuItems = isTeacher ? teacherMenuItems : studentMenuItems;
 
   const handleLogout = async () => {
     try {
@@ -119,15 +102,14 @@ const Sidebar: React.FC = () => {
           ? "var(--color-primary-light)"
           : "var(--color-secondary-light)",
         color: "var(--color-text-primary)",
-      }}>
+      }}
+    >
       <div>
         {/* Header with user info */}
         <div className="mb-8">
           {!isMinimized && (
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold">
-                오늘의 미션
-              </h1>
+              <h1 className="text-2xl font-bold">오늘의 미션</h1>
               {userProfile && (
                 <div className="text-sm opacity-80">
                   <p>{userProfile.name}</p>
@@ -138,31 +120,25 @@ const Sidebar: React.FC = () => {
                     <p
                       className="text-sm font-medium"
                       style={{
-                        color:
-                          "var(--color-primary-medium)",
-                      }}>
+                        color: "var(--color-primary-medium)",
+                      }}
+                    >
                       {(() => {
                         // teacher가 배열인 경우 첫 번째 요소 사용
-                        const teacher = Array.isArray(
-                          userProfile.teacher
-                        )
+                        const teacher = Array.isArray(userProfile.teacher)
                           ? userProfile.teacher[0]
                           : userProfile.teacher;
 
                         if (teacher?.name) {
                           return (
                             <>
-                              <span className="font-bold">
-                                {teacher.name}
-                              </span>{" "}
+                              <span className="font-bold">{teacher.name}</span>{" "}
                               선생님 반
                             </>
                           );
                         } else {
                           return (
-                            <span className="text-gray-400">
-                              반 정보 없음
-                            </span>
+                            <span className="text-gray-400">반 정보 없음</span>
                           );
                         }
                       })()}
@@ -199,8 +175,7 @@ const Sidebar: React.FC = () => {
                     if (
                       !(
                         location.pathname === item.path ||
-                        (item.path ===
-                          "/mission-settings" &&
+                        (item.path === "/mission-settings" &&
                           location.pathname === "/settings")
                       )
                     ) {
@@ -212,19 +187,16 @@ const Sidebar: React.FC = () => {
                     if (
                       !(
                         location.pathname === item.path ||
-                        (item.path ===
-                          "/mission-settings" &&
+                        (item.path === "/mission-settings" &&
                           location.pathname === "/settings")
                       )
                     ) {
-                      e.currentTarget.style.backgroundColor =
-                        "transparent";
+                      e.currentTarget.style.backgroundColor = "transparent";
                     }
-                  }}>
+                  }}
+                >
                   <item.icon
-                    className={`text-xl ${
-                      !isMinimized ? "mr-3" : ""
-                    }`}
+                    className={`text-xl ${!isMinimized ? "mr-3" : ""}`}
                   />
                   {!isMinimized && <span>{item.name}</span>}
                 </Link>
@@ -241,19 +213,14 @@ const Sidebar: React.FC = () => {
           }`}
           style={{ backgroundColor: "transparent" }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor =
-              "var(--color-bg-hover)";
+            e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor =
-              "transparent";
+            e.currentTarget.style.backgroundColor = "transparent";
           }}
-          aria-label="Logout">
-          <LuLogOut
-            className={`text-xl ${
-              !isMinimized ? "mr-3" : ""
-            }`}
-          />
+          aria-label="Logout"
+        >
+          <LuLogOut className={`text-xl ${!isMinimized ? "mr-3" : ""}`} />
           {!isMinimized && <span>로그아웃</span>}
         </button>
         <button
@@ -261,18 +228,13 @@ const Sidebar: React.FC = () => {
           className="p-2 rounded-lg self-center transition-colors"
           style={{ backgroundColor: "transparent" }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor =
-              "var(--color-bg-hover)";
+            e.currentTarget.style.backgroundColor = "var(--color-bg-hover)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor =
-              "transparent";
+            e.currentTarget.style.backgroundColor = "transparent";
           }}
-          aria-label={
-            isMinimized
-              ? "Expand sidebar"
-              : "Collapse sidebar"
-          }>
+          aria-label={isMinimized ? "Expand sidebar" : "Collapse sidebar"}
+        >
           {isMinimized ? (
             <LuChevronsRight className="text-xl" />
           ) : (

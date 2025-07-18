@@ -6,6 +6,8 @@ import {
   LuKey,
   LuSave,
   LuTriangle,
+  LuEye,
+  LuEyeOff,
 } from "react-icons/lu";
 import { toast } from "react-hot-toast";
 
@@ -15,34 +17,26 @@ const AccountSettings: React.FC = () => {
   const [pinCode, setPinCode] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDefaultPin, setIsDefaultPin] =
-    useState<boolean>(false);
+  const [isDefaultPin, setIsDefaultPin] = useState<boolean>(false);
+  const [showPin, setShowPin] = useState<boolean>(false);
 
   useEffect(() => {
     if (userProfile) {
       setChildName(userProfile.name);
       // 데이터베이스의 PIN을 4자리 문자열로 변환
-      const dbPin =
-        userProfile.pin_code?.toString().padStart(4, "0") ||
-        "0000";
+      const dbPin = userProfile.pin_code?.toString().padStart(4, "0") || "0000";
       setPinCode(dbPin);
       // PIN이 0000인지 확인
-      setIsDefaultPin(
-        userProfile.pin_code === 0 || !userProfile.pin_code
-      );
+      setIsDefaultPin(userProfile.pin_code === 0 || !userProfile.pin_code);
     }
   }, [userProfile]);
 
-  const handleChildNameChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleChildNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setChildName(e.target.value);
     setError(null);
   };
 
-  const handlePinCodeChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handlePinCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (/^\d*$/.test(value) && value.length <= 4) {
       setPinCode(value);
@@ -101,12 +95,8 @@ const AccountSettings: React.FC = () => {
 
   const isFormChanged = () => {
     if (!userProfile) return false;
-    const dbPin =
-      userProfile.pin_code?.toString().padStart(4, "0") ||
-      "0000";
-    return (
-      childName !== userProfile.name || pinCode !== dbPin
-    );
+    const dbPin = userProfile.pin_code?.toString().padStart(4, "0") || "0000";
+    return childName !== userProfile.name || pinCode !== dbPin;
   };
 
   return (
@@ -114,7 +104,8 @@ const AccountSettings: React.FC = () => {
       className="bg-white rounded-lg shadow-md p-6"
       style={{
         borderColor: "var(--color-border-default)",
-      }}>
+      }}
+    >
       {loading ? (
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500"></div>
@@ -132,9 +123,8 @@ const AccountSettings: React.FC = () => {
                   기본 PIN 코드 사용 중
                 </p>
                 <p className="text-yellow-700">
-                  현재 기본 PIN 코드(0000)를 사용하고
-                  있습니다. 보안을 위해 PIN을 변경하시기
-                  바랍니다.
+                  현재 기본 PIN 코드(0000)를 사용하고 있습니다. 보안을 위해
+                  PIN을 변경하시기 바랍니다.
                 </p>
               </div>
             </div>
@@ -148,7 +138,8 @@ const AccountSettings: React.FC = () => {
                 className="block text-sm font-medium mb-2 flex items-center"
                 style={{
                   color: "var(--color-text-secondary)",
-                }}>
+                }}
+              >
                 <LuUser className="mr-2" /> 이름
               </label>
               <input
@@ -158,8 +149,7 @@ const AccountSettings: React.FC = () => {
                 onChange={handleChildNameChange}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none"
                 style={{
-                  borderColor:
-                    "var(--color-border-default)",
+                  borderColor: "var(--color-border-default)",
                 }}
                 placeholder="이름을 입력하세요"
               />
@@ -172,26 +162,35 @@ const AccountSettings: React.FC = () => {
                 className="block text-sm font-medium mb-2 flex items-center"
                 style={{
                   color: "var(--color-text-secondary)",
-                }}>
+                }}
+              >
                 <LuKey className="mr-2" /> PIN 코드 (4자리)
               </label>
               <p className="text-xs text-gray-500 mb-2">
-                오늘의 미션 설정 페이지에 접근할 때 필요한
-                PIN 코드입니다.
+                오늘의 미션 설정 페이지에 접근할 때 필요한 PIN 코드입니다.
               </p>
-              <input
-                type="password"
-                id="pinCode"
-                value={pinCode}
-                onChange={handlePinCodeChange}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none"
-                style={{
-                  borderColor:
-                    "var(--color-border-default)",
-                }}
-                placeholder="4자리 숫자"
-                maxLength={4}
-              />
+              <div className="relative">
+                <input
+                  type={showPin ? "text" : "password"}
+                  id="pinCode"
+                  value={pinCode}
+                  onChange={handlePinCodeChange}
+                  className="w-full px-3 py-2 pr-10 border rounded-md focus:outline-none"
+                  style={{
+                    borderColor: "var(--color-border-default)",
+                  }}
+                  placeholder="4자리 숫자"
+                  maxLength={4}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700"
+                  title={showPin ? "PIN 숨기기" : "PIN 보기"}
+                >
+                  {showPin ? <LuEye size={20} /> : <LuEyeOff size={20} />}
+                </button>
+              </div>
             </div>
 
             {/* 에러 메시지 */}
@@ -201,7 +200,8 @@ const AccountSettings: React.FC = () => {
                 style={{
                   backgroundColor: "var(--color-bg-error)",
                   color: "var(--color-text-error)",
-                }}>
+                }}
+              >
                 {error}
               </div>
             )}
@@ -219,7 +219,8 @@ const AccountSettings: React.FC = () => {
                 backgroundColor: isFormChanged()
                   ? "var(--color-primary-medium)"
                   : undefined,
-              }}>
+              }}
+            >
               {loading ? (
                 <span className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
               ) : (
