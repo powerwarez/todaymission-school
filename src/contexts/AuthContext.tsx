@@ -137,11 +137,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const fetchStudentProfile = async (qrToken: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: userData, error } = await supabase
         .from("users")
-        .select(
-          "*, school:schools(*), teacher:users!teacher_id(*)"
-        )
+        .select("*")
         .eq("qr_token", qrToken)
         .single();
 
@@ -153,7 +151,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         return null;
       }
 
-      return data;
+      if (!userData) return null;
+
+      // 학교 정보 가져오기
+      let schoolData = null;
+      if (userData.school_id) {
+        const { data: school } = await supabase
+          .from("schools")
+          .select("*")
+          .eq("id", userData.school_id)
+          .single();
+
+        if (school) schoolData = school;
+      }
+
+      // 교사 정보 가져오기
+      let teacherData = null;
+      if (userData.teacher_id) {
+        const { data: teacher } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", userData.teacher_id)
+          .single();
+
+        if (teacher) teacherData = teacher;
+      }
+
+      return {
+        ...userData,
+        school: schoolData,
+        teacher: teacherData,
+      };
     } catch (err) {
       console.error(
         "Failed to fetch student profile:",

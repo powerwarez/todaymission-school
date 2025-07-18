@@ -13,8 +13,7 @@ import WeeklyStatusDisplay from "../components/WeeklyStatusDisplay"; // 주간 �
 import ConfettiEffect from "../components/ConfettiEffect";
 import { Mission } from "../types"; // Mission 타입만 가져오기
 import { toZonedTime, format } from "date-fns-tz"; // date-fns-tz import
-import { LuX, LuCheck, LuGift } from "react-icons/lu";
-import { toast } from "react-hot-toast";
+import { LuGift } from "react-icons/lu";
 // import { FaCheckCircle } from "react-icons/fa"; // 버튼 제거로 불필요
 // import { LuCircle } from 'react-icons/lu'; // 버튼 제거로 불필요
 
@@ -28,7 +27,7 @@ const getCompletedMissionStyle = () => {
 };
 
 const TodayMissionPage: React.FC = () => {
-  const { user, userProfile, timeZone } = useAuth(); // 사용자 정보 가져오기
+  const { userProfile, timeZone } = useAuth(); // 사용자 정보 가져오기
 
   // 오늘 날짜를 KST 기준으로 설정
   const todayKSTObj = useMemo(
@@ -74,19 +73,45 @@ const TodayMissionPage: React.FC = () => {
     useState<string>(
       "이번주에 미션을 모두 달성해서 하고 싶은 것"
     );
-  const [showRewardModal, setShowRewardModal] =
-    useState(false);
-  const [editingReward, setEditingReward] = useState("");
-  const [savingReward, setSavingReward] = useState(false);
+  const [showWeeklyReward, setShowWeeklyReward] =
+    useState(true);
 
   // 사용자 정보 가져오기
   useEffect(() => {
-    if (!userProfile) return;
+    const fetchTeacherSettings = async () => {
+      if (!userProfile) return;
 
-    // userProfile에서 사용자 이름 가져오기
-    setChildName(userProfile.name || "");
-    // weekly_reward_goal은 별도 테이블에서 관리해야 함 (TODO)
-    setWeeklyRewardGoal("");
+      // userProfile에서 사용자 이름 가져오기
+      setChildName(userProfile.name || "");
+
+      // 학생인 경우 교사의 주간 보상 설정 가져오기
+      if (
+        userProfile.role === "student" &&
+        userProfile.teacher_id
+      ) {
+        try {
+          const { data: teacherData } = await supabase
+            .from("users")
+            .select("weekly_reward, show_weekly_reward")
+            .eq("id", userProfile.teacher_id)
+            .single();
+
+          if (teacherData) {
+            setWeeklyRewardGoal(
+              teacherData.weekly_reward ||
+                "이번주에 미션을 모두 달성해서 하고 싶은 것"
+            );
+            setShowWeeklyReward(
+              teacherData.show_weekly_reward !== false
+            );
+          }
+        } catch (error) {
+          console.error("교사 설정 가져오기 오류:", error);
+        }
+      }
+    };
+
+    fetchTeacherSettings();
   }, [userProfile]);
 
   // --- 스냅샷 확인 및 생성 로직 수정 --- //
@@ -209,14 +234,36 @@ const TodayMissionPage: React.FC = () => {
 
   // 미션 상태 토글 처리 함수
   const handleToggleComplete = async (mission: Mission) => {
-    if (!user) return;
+    console.log("[handleToggleComplete] 시작", {
+      userProfile: !!userProfile,
+      userProfileId: userProfile?.id,
+      missionId: mission.id,
+    });
+
+    if (!userProfile) {
+      console.log(
+        "[handleToggleComplete] userProfile 없음"
+      );
+      return;
+    }
+
     try {
-      if (missionsLoading || logsLoading) return;
+      if (missionsLoading || logsLoading) {
+        console.log(
+          "[handleToggleComplete] 로딩 중이므로 중단"
+        );
+        return;
+      }
 
       const missionToUpdate = missionsWithStatus.find(
         (m) => m.id === mission.id
       );
-      if (!missionToUpdate) return;
+      if (!missionToUpdate) {
+        console.log(
+          "[handleToggleComplete] 미션을 찾을 수 없음"
+        );
+        return;
+      }
 
       console.log(
         "미션 토글:",
@@ -240,17 +287,26 @@ const TodayMissionPage: React.FC = () => {
         }
       } else {
         // 완료되지 않은 미션이면 로그 추가
-        await addLog(mission.id);
-        console.log("로그 추가 완료");
+        const addResult = await addLog(mission.id);
+        console.log("addLog 결과:", addResult);
 
-        // // 효과음 재생
-        // if (audio) {
-        //   audio.currentTime = 0;
-        //   audio.play().catch((e) => console.error("Audio play error:", e));
-        // }
+        if (addResult) {
+          console.log("로그 추가 성공");
 
-        // 폭죽 효과 표시
-        setShowConfetti(true);
+          // // 효과음 재생
+          // if (audio) {
+          //   audio.currentTime = 0;
+          //   audio.play().catch((e) => console.error("Audio play error:", e));
+          // }
+
+          // 폭죽 효과 표시
+          setShowConfetti(true);
+        } else {
+          console.error(
+            "로그 추가 실패 - addLog가 null 반환"
+          );
+        }
+
         // 로그 목록 다시 가져오기
         await fetchLogs();
 
@@ -298,44 +354,6 @@ const TodayMissionPage: React.FC = () => {
     });
   }, [missions, logs]);
 
-  // 주간 보상 목표 저장 함수
-  const saveWeeklyRewardGoal = async () => {
-    if (!user) return;
-
-    try {
-      setSavingReward(true);
-
-      // TODO: weekly_reward_goal을 저장할 별도 테이블 필요
-      console.log("Weekly reward goal:", editingReward);
-      // const { error } = await supabase
-      //   .from("user_settings") // 새로운 테이블 필요
-      //   .upsert({
-      //     user_id: user.id,
-      //     weekly_reward_goal: editingReward,
-      //     updated_at: new Date().toISOString(),
-      //   });
-      // if (error) throw error;
-
-      setWeeklyRewardGoal(editingReward);
-      setShowRewardModal(false);
-      toast.success("주간 목표가 저장되었습니다.");
-    } catch (err) {
-      console.error(
-        "주간 목표 저장 중 오류가 발생했습니다:",
-        err
-      );
-      toast.error("주간 목표 저장에 실패했습니다.");
-    } finally {
-      setSavingReward(false);
-    }
-  };
-
-  // 보상 수정 모달 열기
-  const openRewardModal = () => {
-    setEditingReward(weeklyRewardGoal);
-    setShowRewardModal(true);
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       <ConfettiEffect
@@ -370,117 +388,43 @@ const TodayMissionPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 주간 보상 목표 표시 */}
-      <div
-        className="mb-6 flex items-center p-3 rounded-lg cursor-pointer"
-        style={{ backgroundColor: "var(--color-bg-hover)" }}
-        onClick={openRewardModal}>
-        <div className="flex-1">
-          <div className="flex items-center">
-            <LuGift
-              className="mr-2"
-              size={28}
-              style={{
-                color: "var(--color-primary-medium)",
-              }}
-            />
-            <p
-              className="text-2xl font-semibold"
-              style={{
-                color: "var(--color-text-primary)",
-              }}>
-              이번주 보상
-            </p>
-          </div>
-          <div
-            className="inline-flex items-center rounded-lg p-2 mt-2"
-            style={{
-              backgroundColor: "var(--color-primary-light)",
-            }}>
-            <p
-              className="text-2xl"
-              style={{
-                color: "var(--color-text-secondary)",
-              }}>
-              {weeklyRewardGoal}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 주간 보상 편집 모달 */}
-      {showRewardModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black bg-opacity-50"
-            onClick={() => setShowRewardModal(false)}></div>
-          <div className="relative bg-white rounded-lg p-6 max-w-md w-full m-4">
-            <button
-              onClick={() => setShowRewardModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
-              <LuX size={20} />
-            </button>
-
-            <div className="text-center">
-              <h2
-                className="text-xl font-bold mb-4"
+      {/* 주간 보상 목표 표시 - 교사가 설정한 경우만 표시 */}
+      {showWeeklyReward && (
+        <div
+          className="mb-6 flex items-center p-3 rounded-lg"
+          style={{
+            backgroundColor: "var(--color-bg-hover)",
+          }}>
+          <div className="flex-1">
+            <div className="flex items-center">
+              <LuGift
+                className="mr-2"
+                size={28}
+                style={{
+                  color: "var(--color-primary-medium)",
+                }}
+              />
+              <p
+                className="text-2xl font-semibold"
                 style={{
                   color: "var(--color-text-primary)",
                 }}>
-                주간 보상 설정
-              </h2>
-              <p className="text-sm text-gray-600 mb-4">
-                이번 주 미션을 모두 달성했을 때 받고 싶은
-                보상을 입력하세요.
+                이번주 보상
               </p>
-
-              <textarea
-                value={editingReward}
-                onChange={(e) =>
-                  setEditingReward(e.target.value)
-                }
-                className="w-full p-3 border border-gray-300 rounded-lg mb-4"
+            </div>
+            <div
+              className="inline-flex items-center rounded-lg p-2 mt-2"
+              style={{
+                backgroundColor:
+                  "var(--color-primary-light)",
+              }}>
+              <p
+                className="text-2xl"
                 style={{
-                  outline: "none",
-                  borderColor: "var(--color-border-light)",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor =
-                    "var(--color-border-focus)";
-                  e.target.style.boxShadow = `0 0 0 2px var(--color-border-focus)`;
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor =
-                    "var(--color-border-light)";
-                  e.target.style.boxShadow = "none";
-                }}
-                rows={3}
-                placeholder="예: 김밥 싸서 먹기, 맛있는 디저트 먹기, 새 책 사기"
-              />
-
-              <button
-                onClick={saveWeeklyRewardGoal}
-                disabled={savingReward}
-                className="px-6 py-2 rounded-lg transition-colors flex items-center justify-center w-full text-white"
-                style={{
-                  backgroundColor:
-                    "var(--color-primary-medium)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor =
-                    "var(--color-primary-dark)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor =
-                    "var(--color-primary-medium)";
+                  color: "var(--color-text-secondary)",
                 }}>
-                {savingReward ? (
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-white mr-2"></span>
-                ) : (
-                  <LuCheck className="mr-2" />
-                )}
-                저장하기
-              </button>
+                {weeklyRewardGoal}
+              </p>
             </div>
           </div>
         </div>

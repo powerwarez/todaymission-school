@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
-import { DailyMissionSnapshot } from "../types"; // 타입 정의 필요
+import { DailyMissionSnapshot, Mission } from "../types"; // 타입 정의 필요
 
 // 사용하지 않는 formatDate 함수 제거
 
@@ -36,7 +36,24 @@ export const useDailySnapshot = (formattedDate: string) => {
         .maybeSingle(); // 결과가 없거나 하나일 수 있음
 
       if (fetchError) throw fetchError;
-      setSnapshot(data);
+
+      // 데이터베이스 구조를 타입 정의에 맞게 변환
+      if (data) {
+        const transformedData = {
+          ...data,
+          user_id: data.student_id,
+          date: data.snapshot_date,
+          missions_snapshot: data.missions || [],
+          total_missions_count:
+            (data.missions as Mission[])?.length || 0,
+          completed_missions_count:
+            (data.completed_missions as string[])?.length ||
+            0,
+        };
+        setSnapshot(transformedData);
+      } else {
+        setSnapshot(null);
+      }
     } catch (err: unknown) {
       console.error("Error fetching daily snapshot:", err);
       setError(

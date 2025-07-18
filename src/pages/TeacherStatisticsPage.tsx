@@ -44,7 +44,7 @@ const TeacherStatisticsPage: React.FC = () => {
   const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] =
-    useState("week");
+    useState("today");
   const [studentStats, setStudentStats] = useState<
     StudentStats[]
   >([]);
@@ -96,6 +96,9 @@ const TeacherStatisticsPage: React.FC = () => {
       let startDate: DateTime;
 
       switch (selectedPeriod) {
+        case "today":
+          startDate = now.startOf("day");
+          break;
         case "week":
           startDate = now.startOf("week");
           break;
@@ -144,12 +147,39 @@ const TeacherStatisticsPage: React.FC = () => {
         .in("student_id", studentIds)
         .gte("completed_at", startDate.toISO());
 
-      // Fetch badges earned
-      const { data: earnedBadges } = await supabase
-        .from("earned_badges")
+      // Fetch badges earned - both system and custom badges
+      const { data: systemBadges } = await supabase
+        .from("student_system_badges")
         .select("student_id")
         .in("student_id", studentIds)
-        .gte("earned_date", startDate.toSQL());
+        .gte(
+          "earned_date",
+          startDate.toFormat("yyyy-MM-dd")
+        );
+
+      const { data: customBadges } = await supabase
+        .from("student_custom_badges")
+        .select("student_id")
+        .in("student_id", studentIds)
+        .gte(
+          "earned_date",
+          startDate.toFormat("yyyy-MM-dd")
+        );
+
+      // Combine both badge types
+      const earnedBadges = [
+        ...(systemBadges || []),
+        ...(customBadges || []),
+      ];
+
+      console.log("Badge counts:", {
+        systemBadges: systemBadges?.length || 0,
+        customBadges: customBadges?.length || 0,
+        totalBadges: earnedBadges.length,
+        studentIds,
+        startDate: startDate.toFormat("yyyy-MM-dd"),
+        periodType: selectedPeriod,
+      });
 
       // Calculate student statistics
       const studentStatsMap = new Map<
@@ -297,10 +327,11 @@ const TeacherStatisticsPage: React.FC = () => {
         <Select
           value={selectedPeriod}
           onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-40 bg-white border-gray-300">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white border-gray-300">
+            <SelectItem value="today">오늘</SelectItem>
             <SelectItem value="week">이번 주</SelectItem>
             <SelectItem value="month">이번 달</SelectItem>
             <SelectItem value="year">올해</SelectItem>

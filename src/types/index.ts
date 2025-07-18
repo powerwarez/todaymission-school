@@ -39,6 +39,14 @@ export interface Badge {
   description?: string;
   created_at: string; // timestampz
   badge_type?: "mission" | "weekly"; // 배지 유형 (미션 배지 또는 주간 배지)
+  teacher_id?: string; // 교사 ID (badges 테이블에서 사용)
+  icon?: string; // 아이콘 (이모지 또는 URL)
+  type?: string; // 배지 타입 (special 등)
+  criteria?: {
+    mission_id?: string;
+    target_count?: number;
+  }; // 배지 획득 조건
+  is_active?: boolean; // 활성화 여부
 }
 
 export interface UserBadge {
@@ -81,6 +89,9 @@ export interface UserProfile {
   auth_uid?: string;
   qr_token?: string;
   pin_code?: number; // PIN 코드 추가
+  theme?: string; // 테마 설정 추가
+  weekly_reward?: string; // 주간 보상 추가
+  show_weekly_reward?: boolean; // 주간 보상 표시 여부 추가
   created_at: string;
   updated_at: string;
   school?: School;

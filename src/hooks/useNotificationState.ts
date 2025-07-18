@@ -323,25 +323,71 @@ export const useNotificationState = () => {
           }
         }
 
-        const { data: badgeData, error: fetchError } =
-          await supabase
-            .from("badges")
-            .select("*")
-            .eq("id", nextBadgeId)
-            .single();
+        // 시스템 배지인지 커스텀 배지인지 확인
+        let badgeInfo: any = null;
+        let fetchError: any = null;
 
-        if (fetchError) throw fetchError;
+        // 시스템 배지 체크
+        if (
+          nextBadgeId === "daily_mission_complete" ||
+          nextBadgeId === "weekly_mission_complete"
+        ) {
+          const { data: systemBadge, error: systemError } =
+            await supabase
+              .from("system_badges")
+              .select("*")
+              .eq("id", nextBadgeId)
+              .single();
 
-        if (badgeData) {
+          if (!systemError && systemBadge) {
+            // 시스템 배지를 일반 배지 형식으로 변환
+            badgeInfo = {
+              id: systemBadge.id,
+              name: systemBadge.name,
+              description: systemBadge.description,
+              image_url: systemBadge.icon, // 아이콘을 이미지로 사용
+            };
+          } else {
+            fetchError = systemError;
+          }
+        } else {
+          // 커스텀 배지 체크
+          const { data: customBadge, error: customError } =
+            await supabase
+              .from("badges")
+              .select("*")
+              .eq("id", nextBadgeId)
+              .single();
+
+          if (!customError && customBadge) {
+            badgeInfo = {
+              id: customBadge.id,
+              name: customBadge.name,
+              description: customBadge.description || "",
+              image_url: customBadge.icon || "",
+            };
+          } else {
+            fetchError = customError;
+          }
+        }
+
+        if (fetchError) {
+          console.error(
+            "[StateHook] Error fetching badge data:",
+            fetchError
+          );
+        }
+
+        if (badgeInfo) {
           console.log(
             "[StateHook] Fetched badge data, adding to displayedBadges:",
-            badgeData.id
+            badgeInfo.id
           );
           setDisplayedBadges((prevBadges) => {
             if (
-              !prevBadges.some((b) => b.id === badgeData.id)
+              !prevBadges.some((b) => b.id === badgeInfo.id)
             ) {
-              return [...prevBadges, badgeData as Badge];
+              return [...prevBadges, badgeInfo as Badge];
             }
             return prevBadges;
           });

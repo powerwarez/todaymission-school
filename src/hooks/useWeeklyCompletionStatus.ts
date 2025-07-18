@@ -7,17 +7,15 @@ import {
 } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
-import { toZonedTime, format } from "date-fns-tz";
+import { DateTime } from "luxon";
+import toast from "react-hot-toast";
 import { useNotification } from "../contexts/NotificationContext";
-
-// 시간대 설정
-const timeZone = "Asia/Seoul";
 
 // 날짜를 YYYY-MM-DD 형식으로 포맷 (KST 시간대 고려)
 const formatDate = (date: Date): string => {
-  return format(toZonedTime(date, timeZone), "yyyy-MM-dd", {
-    timeZone,
-  });
+  return DateTime.fromJSDate(date)
+    .setZone("Asia/Seoul")
+    .toFormat("yyyy-MM-dd");
 };
 
 // 오늘을 기준으로 현재 주의 월요일과 금요일 날짜 객체 반환 (KST 기준)
@@ -25,24 +23,17 @@ const getWeekDates = (
   today: Date
 ): { monday: Date; friday: Date } => {
   // 오늘 날짜를 KST로 변환
-  const todayKST = toZonedTime(today, timeZone);
-  // KST 기준 요일 (0:일요일, 1:월요일, ..., 6:토요일)
-  const currentDay = todayKST.getDay();
-  const diffToMonday =
-    currentDay === 0 ? -6 : 1 - currentDay; // 일요일이면 이전 주 월요일로
-  const diffToFriday = 5 - currentDay;
+  const todayKST =
+    DateTime.fromJSDate(today).setZone("Asia/Seoul");
 
-  // 월요일 계산
-  const monday = new Date(todayKST);
-  monday.setDate(todayKST.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0); // 날짜 시작 시간으로 설정
+  // 이번 주 월요일과 금요일 계산
+  const monday = todayKST.startOf("week"); // ISO 주는 월요일부터 시작
+  const friday = monday.plus({ days: 4 }).endOf("day"); // 금요일 종료 시점
 
-  // 금요일 계산 (실제로는 주간 배지 확인을 위해 일요일까지 포함)
-  const friday = new Date(todayKST);
-  friday.setDate(todayKST.getDate() + diffToFriday);
-  friday.setHours(23, 59, 59, 999); // 날짜 종료 시간으로 설정 (포함하기 위해)
-
-  return { monday, friday };
+  return {
+    monday: monday.toJSDate(),
+    friday: friday.toJSDate(),
+  };
 };
 
 // 요일별 완료 상태 타입 정의
@@ -83,13 +74,16 @@ export const useWeeklyCompletionStatus = () => {
   const today = useMemo(() => new Date(), []);
   // KST로 변환된 오늘 날짜
   const todayKST = useMemo(
-    () => toZonedTime(today, timeZone),
-    [today]
+    () =>
+      DateTime.fromJSDate(today).setZone(
+        timeZone || "Asia/Seoul"
+      ),
+    [today, timeZone]
   );
 
   // 이번 주 월/금 날짜 계산 결과를 useMemo로 캐싱 (KST 기준)
   const { monday, friday } = useMemo(
-    () => getWeekDates(todayKST),
+    () => getWeekDates(todayKST.toJSDate()),
     [todayKST]
   );
   // 포맷된 날짜 문자열도 KST 기준으로 생성
@@ -113,8 +107,10 @@ export const useWeeklyCompletionStatus = () => {
         return;
 
       // 오늘이 금요일인지 확인 (KST 기준)
-      const todayKST = toZonedTime(new Date(), timeZone);
-      const dayOfWeek = todayKST.getDay(); // 0: 일요일, 1: 월요일, ..., 5: 금요일, 6: 토요일
+      const todayKST = DateTime.fromJSDate(
+        new Date()
+      ).setZone(timeZone || "Asia/Seoul");
+      const dayOfWeek = todayKST.weekday; // luxon은 1: 월요일, ..., 5: 금요일, 7: 일요일
       const isFriday = dayOfWeek === 5;
 
       // 금요일이 아니면 체크하지 않음
@@ -164,58 +160,104 @@ export const useWeeklyCompletionStatus = () => {
           mondayStart.setHours(0, 0, 0, 0);
 
           // 일요일 계산 (이번 주 끝)
-          const todayKST = toZonedTime(
-            new Date(),
-            timeZone
-          );
-          const currentDay = todayKST.getDay();
+          const todayKST = DateTime.fromJSDate(
+            new Date()
+          ).setZone(timeZone || "Asia/Seoul");
+          const currentDay = todayKST.weekday; // luxon은 1: 월요일, ..., 7: 일요일
           const diffToSunday =
-            currentDay === 0 ? 0 : 7 - currentDay; // 일요일이면 오늘, 아니면 다음 일요일
-          const sunday = new Date(todayKST);
-          sunday.setDate(todayKST.getDate() + diffToSunday);
+            currentDay === 7 ? 0 : 7 - currentDay; // 일요일이면 오늘, 아니면 다음 일요일
+          const sunday = new Date(todayKST.toJSDate());
+          sunday.setDate(
+            todayKST.toJSDate().getDate() + diffToSunday
+          );
           sunday.setHours(23, 59, 59, 999);
 
           console.log(
             `[StateHook] Checking weekly streak between ${mondayStart.toISOString()} and ${sunday.toISOString()}`
           );
 
-          // 주간 스트릭 배지 획득 여부 확인 (이번 주 전체 기간)
+          // 주간 미션 달성 배지 획득 여부 확인 (이번 주 전체 기간)
           const {
-            data: existingRewards,
+            data: existingSystemBadges,
             error: checkError,
           } = await supabase
-            .from("earned_badges")
-            .select("id, badge_id, earned_date")
+            .from("student_system_badges")
+            .select("id, system_badge_id, earned_date")
             .eq("student_id", userProfile.id)
+            .eq(
+              "system_badge_id",
+              "weekly_mission_complete"
+            )
             .gte(
               "earned_date",
-              format(mondayStart, "yyyy-MM-dd")
+              DateTime.fromJSDate(mondayStart)
+                .setZone("Asia/Seoul")
+                .toFormat("yyyy-MM-dd")
             )
             .lte(
               "earned_date",
-              format(sunday, "yyyy-MM-dd")
+              DateTime.fromJSDate(sunday)
+                .setZone("Asia/Seoul")
+                .toFormat("yyyy-MM-dd")
             );
 
           if (checkError) throw checkError;
 
           console.log(
-            "주간 스트릭 획득 여부:",
-            existingRewards
+            "주간 미션 달성 배지 획득 여부:",
+            existingSystemBadges
           );
 
           // 이미 배지를 획득했는지 확인
           if (
-            existingRewards &&
-            existingRewards.length > 0
+            existingSystemBadges &&
+            existingSystemBadges.length > 0
           ) {
             console.log(
-              "이미 이번 주에 주간 스트릭 배지를 획득했습니다."
+              "이미 이번 주에 주간 미션 달성 배지를 획득했습니다."
             );
             setWeeklyStreakRewarded(true);
           } else {
-            // 아직 배지가 부여되지 않았다면 배지 선택 모달 표시
-            console.log("주간 스트릭 배지 선택 모달 표시");
-            showBadgeNotification("weekly_streak_1");
+            // 주간 미션 달성 배지 자동 부여
+            console.log("주간 미션 달성 배지 부여");
+
+            try {
+              const { error: insertError } = await supabase
+                .from("student_system_badges")
+                .insert({
+                  student_id: userProfile.id,
+                  system_badge_id:
+                    "weekly_mission_complete",
+                  earned_date: DateTime.fromJSDate(
+                    todayKST.toJSDate()
+                  )
+                    .setZone("Asia/Seoul")
+                    .toFormat("yyyy-MM-dd"),
+                });
+
+              if (insertError) {
+                console.error(
+                  "주간 미션 달성 배지 저장 실패:",
+                  insertError
+                );
+              } else {
+                console.log("✅ 주간 미션 달성 배지 획득!");
+                // Toast 알림 표시
+                toast.success(
+                  "🌟 주간 미션 달성! 배지를 획득했습니다!",
+                  {
+                    duration: 4000,
+                    position: "top-center",
+                  }
+                );
+                showBadgeNotification(
+                  "weekly_mission_complete"
+                );
+              }
+            } catch (err) {
+              console.error("배지 저장 중 오류:", err);
+            }
+
             setWeeklyStreakRewarded(true);
           }
         } catch (err) {
@@ -233,6 +275,7 @@ export const useWeeklyCompletionStatus = () => {
       weeklyStreakAchieved,
       weeklyStreakRewarded,
       showBadgeNotification,
+      timeZone,
     ]
   );
 
@@ -308,7 +351,7 @@ export const useWeeklyCompletionStatus = () => {
       const currentDay = new Date(monday);
 
       // 오늘 날짜 문자열 (KST 기준)
-      const todayStr = formatDate(todayKST);
+      const todayStr = formatDate(todayKST.toJSDate());
 
       for (let i = 1; i <= 5; i++) {
         const currentDateStr = formatDate(currentDay);
@@ -414,13 +457,23 @@ export const useWeeklyCompletionStatus = () => {
       setLoading(false);
       isProcessing.current = false;
     }
-  }, [formattedMonday, formattedFriday, userProfile]);
+  }, [
+    formattedMonday,
+    formattedFriday,
+    userProfile,
+    timeZone,
+  ]);
 
   useEffect(() => {
     if (userProfile) {
       fetchWeeklyStatus();
     }
-  }, [userProfile, formattedMonday, formattedFriday]);
+  }, [
+    userProfile,
+    formattedMonday,
+    formattedFriday,
+    timeZone,
+  ]);
 
   return {
     weekStatus,

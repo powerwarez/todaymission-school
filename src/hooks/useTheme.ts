@@ -5,42 +5,111 @@ import {
   type ColorTheme,
 } from "../theme/colors";
 import { toast } from "react-hot-toast";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../contexts/AuthContext";
 
 export const useTheme = () => {
   const [currentTheme, setCurrentTheme] =
     useState<string>("summerSky");
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const { userProfile } = useAuth();
 
-  // 앱 초기 로딩 시 테마 적용 (사용자 로그인 상태와 무관하게)
+  // 앱 초기 로딩 시 테마 적용
   useEffect(() => {
-    const initializeTheme = () => {
-      // 로컬 스토리지에서 테마 확인
-      const savedTheme = localStorage.getItem("app-theme");
-      if (savedTheme && themes[savedTheme]) {
-        setCurrentTheme(savedTheme);
-        updateCSSVariables(themes[savedTheme]);
-      } else {
-        // 저장된 테마가 없으면 기본 테마 적용
+    const initializeTheme = async () => {
+      setIsLoading(true);
+
+      try {
+        // 사용자가 로그인한 경우
+        if (userProfile) {
+          let themeToApply = "summerSky";
+
+          // 학생인 경우 교사의 테마를 가져옴
+          if (
+            userProfile.role === "student" &&
+            userProfile.teacher_id
+          ) {
+            const { data: teacherData } = await supabase
+              .from("users")
+              .select("theme")
+              .eq("id", userProfile.teacher_id)
+              .single();
+
+            if (
+              teacherData?.theme &&
+              themes[teacherData.theme]
+            ) {
+              themeToApply = teacherData.theme;
+            }
+          } else if (
+            userProfile.role === "teacher" &&
+            userProfile.theme
+          ) {
+            // 교사인 경우 자신의 테마 사용
+            themeToApply = userProfile.theme;
+          }
+
+          setCurrentTheme(themeToApply);
+          updateCSSVariables(themes[themeToApply]);
+          // 로컬 스토리지에도 저장 (캐싱 목적)
+          localStorage.setItem("app-theme", themeToApply);
+        } else {
+          // 로그인하지 않은 경우 로컬 스토리지에서 테마 확인
+          const savedTheme =
+            localStorage.getItem("app-theme");
+          if (savedTheme && themes[savedTheme]) {
+            setCurrentTheme(savedTheme);
+            updateCSSVariables(themes[savedTheme]);
+          } else {
+            // 저장된 테마가 없으면 기본 테마 적용
+            setCurrentTheme("summerSky");
+            updateCSSVariables(defaultTheme);
+          }
+        }
+      } catch (error) {
+        console.error("테마 초기화 중 오류:", error);
+        // 오류 발생 시 기본 테마 적용
         setCurrentTheme("summerSky");
         updateCSSVariables(defaultTheme);
+      } finally {
+        setIsInitialized(true);
+        setIsLoading(false);
       }
-      setIsInitialized(true);
     };
 
     // 즉시 테마 초기화
     initializeTheme();
-  }, []);
+  }, [userProfile]);
 
-  // 테마를 로컬 스토리지에만 저장하는 함수
-  const saveThemeToLocal = async (themeKey: string) => {
+  // 테마 저장 함수
+  const saveTheme = async (themeKey: string) => {
     setIsSaving(true);
+
     try {
+      // 로컬 스토리지에 먼저 저장
       localStorage.setItem("app-theme", themeKey);
-      toast.success("테마 설정이 저장되었습니다.");
+
+      // 교사인 경우 데이터베이스에도 저장
+      if (userProfile && userProfile.role === "teacher") {
+        const { error } = await supabase
+          .from("users")
+          .update({ theme: themeKey })
+          .eq("id", userProfile.id);
+
+        if (error) {
+          throw error;
+        }
+
+        toast.success(
+          "테마가 저장되었습니다. 학생들에게도 적용됩니다."
+        );
+      } else {
+        toast.success("테마 설정이 저장되었습니다.");
+      }
     } catch (err) {
-      console.error("테마 저장 중 예외 발생:", err);
+      console.error("테마 저장 중 오류:", err);
       toast.error("테마 설정 저장에 실패했습니다.");
     } finally {
       setIsSaving(false);
@@ -208,8 +277,8 @@ export const useTheme = () => {
     setCurrentTheme(themeKey);
     updateCSSVariables(themes[themeKey]);
 
-    // 로컬 스토리지에만 저장
-    await saveThemeToLocal(themeKey);
+    // 테마 저장 (교사는 DB에도 저장)
+    await saveTheme(themeKey);
   };
 
   return {

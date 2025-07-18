@@ -12,7 +12,8 @@
 
 /* 배지 테두리 발광 효과 애니메이션 */
 @keyframes pulseGlow {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.7;
   }
   50% {
@@ -27,5 +28,11 @@
 
 /* 배지 테두리 발광 효과 적용 */
 .badge-glow {
-  animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-} 
+  animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1)
+    infinite;
+}
+
+/* 일반 페이드인 애니메이션 */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}

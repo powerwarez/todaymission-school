@@ -19,6 +19,28 @@ const Sidebar: React.FC = () => {
     useAuth();
   const [isMinimized, setIsMinimized] = useState(false);
 
+  // 디버깅용 로그
+  if (isStudent && userProfile) {
+    console.log("학생 프로필 전체:", userProfile);
+    console.log(
+      "teacher 타입:",
+      typeof userProfile.teacher
+    );
+    console.log("teacher 값:", userProfile.teacher);
+    if (Array.isArray(userProfile.teacher)) {
+      console.log(
+        "teacher는 배열입니다. 길이:",
+        userProfile.teacher.length
+      );
+      if (userProfile.teacher.length > 0) {
+        console.log(
+          "첫 번째 teacher:",
+          userProfile.teacher[0]
+        );
+      }
+    }
+  }
+
   // 교사용 메뉴
   const teacherMenuItems = [
     {
@@ -112,9 +134,38 @@ const Sidebar: React.FC = () => {
                   {isTeacher && userProfile.school && (
                     <p>{userProfile.school.name}</p>
                   )}
-                  {isStudent && userProfile.teacher && (
-                    <p>
-                      {userProfile.teacher.name} 선생님 반
+                  {isStudent && (
+                    <p
+                      className="text-sm font-medium"
+                      style={{
+                        color:
+                          "var(--color-primary-medium)",
+                      }}>
+                      {(() => {
+                        // teacher가 배열인 경우 첫 번째 요소 사용
+                        const teacher = Array.isArray(
+                          userProfile.teacher
+                        )
+                          ? userProfile.teacher[0]
+                          : userProfile.teacher;
+
+                        if (teacher?.name) {
+                          return (
+                            <>
+                              <span className="font-bold">
+                                {teacher.name}
+                              </span>{" "}
+                              선생님 반
+                            </>
+                          );
+                        } else {
+                          return (
+                            <span className="text-gray-400">
+                              반 정보 없음
+                            </span>
+                          );
+                        }
+                      })()}
                     </p>
                   )}
                 </div>

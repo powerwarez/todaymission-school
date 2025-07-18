@@ -126,7 +126,15 @@ const StudentLoginPage: React.FC = () => {
 
         <div className="space-y-6">
           <div>
-            <Label htmlFor="qrToken">QR 코드 입력</Label>
+            <Label
+              htmlFor="qrToken"
+              className={`transition-colors duration-300 ${
+                qrToken.trim()
+                  ? "text-green-600 font-semibold"
+                  : "text-gray-700"
+              }`}>
+              QR 코드 입력
+            </Label>
             <div className="mt-2 flex space-x-2">
               <Input
                 id="qrToken"
@@ -134,9 +142,13 @@ const StudentLoginPage: React.FC = () => {
                 value={qrToken}
                 onChange={(e) => setQrToken(e.target.value)}
                 placeholder="QR 코드를 입력하세요"
-                className="flex-1"
+                className={`flex-1 transition-all duration-300 ${
+                  qrToken.trim()
+                    ? "border-green-500 focus:border-green-600 focus:ring-2 focus:ring-green-500/20"
+                    : "border-gray-300"
+                }`}
                 onKeyPress={(e) => {
-                  if (e.key === "Enter") {
+                  if (e.key === "Enter" && qrToken.trim()) {
                     handleQRLogin();
                   }
                 }}
@@ -147,19 +159,67 @@ const StudentLoginPage: React.FC = () => {
                 size="icon"
                 onClick={handleOpenScanner}
                 disabled={scanMode}
+                className={`transition-all duration-300 ${
+                  scanMode
+                    ? "opacity-50"
+                    : "hover:bg-green-50 hover:border-green-500 hover:text-green-600"
+                }`}
                 title="QR 코드 스캔">
                 <Camera className="h-4 w-4" />
               </Button>
             </div>
+            {qrToken.trim() && (
+              <p className="mt-2 text-sm text-green-600 animate-fade-in">
+                ✓ QR 코드가 입력되었습니다. 로그인 버튼을
+                눌러주세요!
+              </p>
+            )}
           </div>
 
           <Button
             onClick={handleQRLogin}
             disabled={loading || !qrToken.trim()}
-            className="w-full"
+            className={`w-full transition-all duration-300 transform ${
+              qrToken.trim() && !loading
+                ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl hover:scale-105 font-bold text-lg"
+                : "bg-gray-200 text-gray-400 cursor-not-allowed opacity-50"
+            }`}
             size="lg">
-            <QrCode className="mr-2 h-5 w-5" />
-            {loading ? "로그인 중..." : "로그인"}
+            <QrCode
+              className={`mr-2 h-5 w-5 ${
+                qrToken.trim() && !loading
+                  ? "animate-bounce"
+                  : ""
+              }`}
+            />
+            {loading ? (
+              <span className="flex items-center">
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                로그인 중...
+              </span>
+            ) : qrToken.trim() ? (
+              <span className="animate-pulse">
+                로그인하기! 🚀
+              </span>
+            ) : (
+              "QR 코드를 입력하세요"
+            )}
           </Button>
 
           <div className="relative">

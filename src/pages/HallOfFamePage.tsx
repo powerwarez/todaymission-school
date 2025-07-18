@@ -23,11 +23,7 @@ import {
 } from "react-icons/lu";
 import { Mission, EarnedBadge } from "../types"; // Mission 타입만 필요할 수 있음
 // date-fns-tz import 추가, format 추가
-import {
-  formatInTimeZone,
-  toZonedTime,
-  format,
-} from "date-fns-tz";
+import { DateTime } from "luxon";
 import { useAuth } from "../contexts/AuthContext";
 import toast from "react-hot-toast";
 import { supabase } from "../lib/supabaseClient";
@@ -39,42 +35,28 @@ import { BadgeSelectionModal } from "../components/BadgeSelectionModal";
 
 const HallOfFamePage: React.FC = () => {
   const { timeZone } = useAuth();
-  const initialDate = new Date();
-  // KST로 해석된 현재 시각 (Date 객체는 아님, ZonedDateTime 유사 객체)
-  const todayKSTObj = toZonedTime(initialDate, timeZone);
-
-  // selectedDate는 KST 기준 날짜를 나타내는 Date 객체 (UTC 타임스탬프는 KST 자정)
-  const [selectedDate, setSelectedDate] = useState<Date>(
-    new Date(
-      format(todayKSTObj, "yyyy-MM-dd", { timeZone }) +
-        "T00:00:00Z"
-    )
+  // Luxon으로 한국 시간 가져오기
+  const todayKST = DateTime.now().setZone(
+    timeZone || "Asia/Seoul"
   );
 
-  // currentMonthDate는 해당 월의 1일 UTC 00:00:00을 나타내는 Date 객체
+  // selectedDate는 KST 기준 날짜를 나타내는 Date 객체
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    todayKST.startOf("day").toJSDate()
+  );
+
+  // currentMonthDate는 해당 월의 1일을 나타내는 Date 객체
   const [currentMonthDate, setCurrentMonthDate] =
-    useState<Date>(
-      new Date(
-        Date.UTC(
-          todayKSTObj.getFullYear(),
-          todayKSTObj.getMonth(),
-          1
-        )
-      )
-    );
+    useState<Date>(todayKST.startOf("month").toJSDate());
 
   // --- 날짜별 기록 관련 --- //
   // 훅에는 KST 기준 YYYY-MM-DD 문자열 전달
   const formattedSelectedDate = useMemo(() => {
-    // selectedDate (UTC 자정 Date 객체)를 KST 기준으로 yyyy-MM-dd 포맷
-    return format(
-      toZonedTime(selectedDate, timeZone),
-      "yyyy-MM-dd",
-      {
-        timeZone,
-      }
-    );
-  }, [selectedDate]);
+    // selectedDate를 한국 시간대로 변환 후 포맷
+    return DateTime.fromJSDate(selectedDate)
+      .setZone(timeZone || "Asia/Seoul")
+      .toFormat("yyyy-MM-dd");
+  }, [selectedDate, timeZone]);
 
   // useDailySnapshot과 useMissionLogs는 이제 문자열을 받도록 수정될 예정
   // 린터 오류는 다음 단계에서 훅 수정 시 해결됨
@@ -103,25 +85,13 @@ const HallOfFamePage: React.FC = () => {
     "all" | "mission" | "weekly"
   >("weekly");
 
-  // 필터링된 배지 탭에 따라 배지 데이터 가져오기
+  // 모든 배지 데이터를 한 번에 가져오기
   const {
     earnedBadges: allBadges,
     loading: allBadgesLoading,
     error: allBadgesError,
     refetch: refetchAllBadges,
   } = useEarnedBadges();
-  const {
-    earnedBadges: missionBadges,
-    loading: missionBadgesLoading,
-    error: missionBadgesError,
-    refetch: refetchMissionBadges,
-  } = useEarnedBadges("mission");
-  const {
-    earnedBadges: weeklyBadges,
-    loading: weeklyBadgesLoading,
-    error: weeklyBadgesError,
-    refetch: refetchWeeklyBadges,
-  } = useEarnedBadges("weekly");
 
   // 현재 선택된 탭에 따라 표시할 배지 목록 결정
   const displayedBadges = useMemo(() => {
@@ -130,19 +100,22 @@ const HallOfFamePage: React.FC = () => {
       badgeTab
     );
     console.log("[DEBUG] 전체 배지:", allBadges);
-    console.log("[DEBUG] 주간 배지:", weeklyBadges);
-    console.log("[DEBUG] 미션 배지:", missionBadges);
 
     let filteredBadges;
 
     switch (badgeTab) {
       case "mission":
-        filteredBadges = missionBadges;
+        // mission 탭에서는 weekly 타입이 아닌 모든 배지를 표시
+        filteredBadges = allBadges.filter(
+          (badge) => badge.badge?.badge_type !== "weekly"
+        );
         break;
       case "weekly":
-        // weekly_streak_1 배지는 제외하고 표시
-        filteredBadges = weeklyBadges.filter(
-          (badge) => badge.badge.id !== "weekly_streak_1"
+        // weekly 탭에서는 weekly 타입인 배지만 표시 (weekly_streak_1 제외)
+        filteredBadges = allBadges.filter(
+          (badge) =>
+            badge.badge?.badge_type === "weekly" &&
+            badge.badge.id !== "weekly_streak_1"
         );
         console.log(
           "[DEBUG] weekly_streak_1 제외 후 주간 배지:",
@@ -159,17 +132,11 @@ const HallOfFamePage: React.FC = () => {
     }
 
     return filteredBadges;
-  }, [badgeTab, allBadges, missionBadges, weeklyBadges]);
+  }, [badgeTab, allBadges]);
 
   // 배지 관련 로딩 및 에러 상태 통합
-  const badgesLoading =
-    allBadgesLoading ||
-    missionBadgesLoading ||
-    weeklyBadgesLoading;
-  const badgesError =
-    allBadgesError ||
-    missionBadgesError ||
-    weeklyBadgesError;
+  const badgesLoading = allBadgesLoading;
+  const badgesError = allBadgesError;
 
   // 로딩 및 에러 상태 통합 (기존 코드 수정)
   const isLoading =
@@ -209,38 +176,35 @@ const HallOfFamePage: React.FC = () => {
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const selectedDateString = event.target.value; // YYYY-MM-DD
-    // 입력된 YYYY-MM-DD 문자열 (KST 기준 날짜)을 UTC 자정 Date 객체로 변환
-    setSelectedDate(
-      new Date(selectedDateString + "T00:00:00Z")
-    );
+    // 입력된 YYYY-MM-DD 문자열을 한국 시간 기준으로 처리
+    const newDate = DateTime.fromISO(selectedDateString, {
+      zone: timeZone || "Asia/Seoul",
+    })
+      .startOf("day")
+      .toJSDate();
+    setSelectedDate(newDate);
   };
   // --- 끝: 날짜별 기록 관련 로직 --- //
 
   // --- 월별 달력 관련 로직 --- //
   const handlePreviousMonth = () => {
-    setCurrentMonthDate(
-      (prev) =>
-        new Date(
-          Date.UTC(
-            prev.getUTCFullYear(),
-            prev.getUTCMonth() - 1,
-            1
-          )
-        )
-    );
+    setCurrentMonthDate((prev) => {
+      const dt = DateTime.fromJSDate(prev)
+        .setZone(timeZone || "Asia/Seoul")
+        .minus({ months: 1 })
+        .startOf("month");
+      return dt.toJSDate();
+    });
   };
 
   const handleNextMonth = () => {
-    setCurrentMonthDate(
-      (prev) =>
-        new Date(
-          Date.UTC(
-            prev.getUTCFullYear(),
-            prev.getUTCMonth() + 1,
-            1
-          )
-        )
-    );
+    setCurrentMonthDate((prev) => {
+      const dt = DateTime.fromJSDate(prev)
+        .setZone(timeZone || "Asia/Seoul")
+        .plus({ months: 1 })
+        .startOf("month");
+      return dt.toJSDate();
+    });
   };
   // --- 끝: 월별 달력 관련 로직 --- //
 
@@ -319,11 +283,7 @@ const HallOfFamePage: React.FC = () => {
       setRewardUsed(newRewardUsed);
 
       // 배지 목록 새로고침
-      await Promise.all([
-        refetchAllBadges(),
-        refetchWeeklyBadges(),
-        refetchMissionBadges(),
-      ]);
+      await refetchAllBadges();
 
       toast.success(
         newRewardUsed
@@ -379,11 +339,9 @@ const HallOfFamePage: React.FC = () => {
     const pendingBadge = pendingWeeklyBadges.find(
       (badge) =>
         badge.formatted_date === week ||
-        formatInTimeZone(
-          new Date(badge.earned_at),
-          timeZone,
-          "yyyy-MM-dd"
-        ) === week
+        DateTime.fromISO(badge.earned_at)
+          .setZone(timeZone || "Asia/Seoul")
+          .toFormat("yyyy-MM-dd") === week
     );
 
     console.log(
@@ -423,11 +381,9 @@ const HallOfFamePage: React.FC = () => {
       const pendingBadge = pendingWeeklyBadges.find(
         (badge) =>
           badge.formatted_date === selectedWeek ||
-          formatInTimeZone(
-            new Date(badge.earned_at),
-            timeZone,
-            "yyyy-MM-dd"
-          ) === selectedWeek
+          DateTime.fromISO(badge.earned_at)
+            .setZone(timeZone || "Asia/Seoul")
+            .toFormat("yyyy-MM-dd") === selectedWeek
       );
 
       if (!pendingBadge) {
@@ -546,22 +502,16 @@ const HallOfFamePage: React.FC = () => {
       toast.success("배지를 획득했습니다!");
 
       // 배지 목록 새로고침
-      await Promise.all([
-        refetchAllBadges(),
-        refetchWeeklyBadges(),
-        refetchMissionBadges(),
-      ]);
+      await refetchAllBadges();
 
       // 선택 완료한 배지는 목록에서 제거
       setPendingWeeklyBadges((prev) =>
         prev.filter(
           (badge) =>
             badge.formatted_date !== selectedWeek &&
-            formatInTimeZone(
-              new Date(badge.earned_at),
-              timeZone,
-              "yyyy-MM-dd"
-            ) !== selectedWeek
+            DateTime.fromISO(badge.earned_at)
+              .setZone(timeZone || "Asia/Seoul")
+              .toFormat("yyyy-MM-dd") !== selectedWeek
         )
       );
 
@@ -662,11 +612,11 @@ const HallOfFamePage: React.FC = () => {
         const earnedDate = new Date(
           weeklyBadge.earned_date + "T00:00:00"
         );
-        const formattedDate = formatInTimeZone(
-          earnedDate,
-          timeZone,
-          "yyyy-MM-dd"
-        );
+        const formattedDate = DateTime.fromJSDate(
+          earnedDate
+        )
+          .setZone(timeZone || "Asia/Seoul")
+          .toFormat("yyyy-MM-dd");
 
         console.log(
           `[DEBUG] 확인 중인 배지: ${weeklyBadge.id}, 획득일: ${formattedDate}`
@@ -777,11 +727,9 @@ const HallOfFamePage: React.FC = () => {
       pendingBadge: pendingWeeklyBadges.find(
         (badge) =>
           badge.formatted_date === selectedWeek ||
-          formatInTimeZone(
-            new Date(badge.earned_at),
-            timeZone,
-            "yyyy-MM-dd"
-          ) === selectedWeek
+          DateTime.fromISO(badge.earned_at)
+            .setZone(timeZone || "Asia/Seoul")
+            .toFormat("yyyy-MM-dd") === selectedWeek
       ),
     });
   }, [
@@ -839,11 +787,9 @@ const HallOfFamePage: React.FC = () => {
                   type="date"
                   id="record-date"
                   // value는 KST 기준 yyyy-MM-dd
-                  value={format(
-                    toZonedTime(selectedDate, timeZone),
-                    "yyyy-MM-dd",
-                    { timeZone }
-                  )}
+                  value={DateTime.fromJSDate(selectedDate)
+                    .setZone(timeZone || "Asia/Seoul")
+                    .toFormat("yyyy-MM-dd")}
                   onChange={handleDateChange}
                   className="rounded px-3 py-2"
                   style={{
@@ -861,19 +807,15 @@ const HallOfFamePage: React.FC = () => {
                     e.target.style.boxShadow = "none";
                   }}
                   // max도 KST 기준 yyyy-MM-dd
-                  max={format(todayKSTObj, "yyyy-MM-dd", {
-                    timeZone,
-                  })}
+                  max={todayKST.toFormat("yyyy-MM-dd")}
                 />
               </div>
 
               <h3 className="text-lg font-medium text-gray-800 mb-4">
                 {/* 표시는 KST 기준으로 */}
-                {formatInTimeZone(
-                  selectedDate,
-                  timeZone,
-                  "yyyy년 M월 d일"
-                )}{" "}
+                {DateTime.fromJSDate(selectedDate)
+                  .setZone(timeZone || "Asia/Seoul")
+                  .toFormat("yyyy년 M월 d일")}{" "}
                 미션 기록
               </h3>
               {!dailySnapshot && !dailySnapshotLoading && (
@@ -983,11 +925,9 @@ const HallOfFamePage: React.FC = () => {
                   </button>
                   <span className="text-lg font-medium text-gray-700">
                     {/* 표시도 KST 기준으로 */}
-                    {formatInTimeZone(
-                      currentMonthDate,
-                      timeZone,
-                      "yyyy년 M월"
-                    )}
+                    {DateTime.fromJSDate(currentMonthDate)
+                      .setZone(timeZone || "Asia/Seoul")
+                      .toFormat("yyyy년 M월")}
                   </span>
                   <button
                     onClick={handleNextMonth}
@@ -1113,11 +1053,11 @@ const HallOfFamePage: React.FC = () => {
                   pendingWeeklyBadges.map(
                     (pendingBadge) => {
                       const formattedDate =
-                        formatInTimeZone(
-                          new Date(pendingBadge.earned_at),
-                          timeZone,
-                          "yyyy.MM.dd"
-                        );
+                        DateTime.fromISO(
+                          pendingBadge.earned_at
+                        )
+                          .setZone(timeZone || "Asia/Seoul")
+                          .toFormat("yyyy.MM.dd");
 
                       console.log(
                         "[DEBUG] 렌더링 - 미선택 배지 카드:",
@@ -1253,29 +1193,55 @@ const HallOfFamePage: React.FC = () => {
                         className="w-20 h-20 mb-2 flex items-center justify-center 
                         border-4 border-gradient-to-r from-pink-300 to-indigo-300 rounded-full 
                         p-1 bg-white shadow-md overflow-hidden">
-                        <img
-                          src={getBadgeImageUrl(
-                            badge.image_path
-                          )}
-                          alt={badge.name}
-                          className="max-w-full max-h-full object-contain rounded-full"
-                          onError={(e) => {
-                            (
-                              e.target as HTMLImageElement
-                            ).src =
-                              "/placeholder_badge.png";
-                          }}
-                        />
+                        {/* 이미지 경로가 있고 이모지가 아닌 경우 (http로 시작하거나 /로 시작하는 경로) */}
+                        {badge.image_path &&
+                        (badge.image_path.startsWith(
+                          "http"
+                        ) ||
+                          badge.image_path.startsWith(
+                            "/"
+                          ) ||
+                          badge.image_path.includes(
+                            "."
+                          )) ? (
+                          <img
+                            src={getBadgeImageUrl(
+                              badge.image_path
+                            )}
+                            alt={badge.name}
+                            className="max-w-full max-h-full object-contain rounded-full"
+                            onError={(e) => {
+                              // 이미지 로드 실패 시 빈 배경 표시
+                              const target =
+                                e.target as HTMLImageElement;
+                              target.style.display = "none";
+                              const parent =
+                                target.parentElement;
+                              if (parent) {
+                                parent.style.backgroundColor =
+                                  "white";
+                              }
+                            }}
+                          />
+                        ) : badge.image_path &&
+                          badge.image_path.trim().length >
+                            0 ? (
+                          // 이모지인 경우
+                          <div className="text-3xl">
+                            {badge.image_path}
+                          </div>
+                        ) : (
+                          // 아무것도 없는 경우 빈 하얀 배경
+                          <div className="w-full h-full bg-white rounded-full" />
+                        )}
                       </div>
                       <h3 className="text-sm font-semibold text-gray-800 text-center">
                         {badge.name}
                       </h3>
                       <p className="text-xs text-gray-500 mt-1 text-center">
-                        {formatInTimeZone(
-                          earnedDate,
-                          timeZone,
-                          "yyyy.MM.dd"
-                        )}{" "}
+                        {DateTime.fromJSDate(earnedDate)
+                          .setZone(timeZone || "Asia/Seoul")
+                          .toFormat("yyyy.MM.dd")}{" "}
                         획득
                       </p>
                       {badge.description && (
@@ -1446,11 +1412,9 @@ const HallOfFamePage: React.FC = () => {
               pendingWeeklyBadges.find(
                 (badge) =>
                   badge.formatted_date === selectedWeek ||
-                  formatInTimeZone(
-                    new Date(badge.earned_at),
-                    timeZone,
-                    "yyyy-MM-dd"
-                  ) === selectedWeek
+                  DateTime.fromISO(badge.earned_at)
+                    .setZone(timeZone || "Asia/Seoul")
+                    .toFormat("yyyy-MM-dd") === selectedWeek
               )?.reward_text || ""
             }
           />

@@ -95,14 +95,6 @@ CREATE POLICY "Teachers can update their school" ON schools
         )
     );
 
--- 8. 추가: 디버깅을 위한 임시 정책 (운영환경에서는 제거해야 함)
--- 이 정책은 문제 해결 후 즉시 제거하세요!
-CREATE POLICY "TEMP_DEBUG_teachers_can_see_all_errors" ON users
-    FOR SELECT USING (
-        auth.uid() IS NOT NULL 
-        AND auth.uid() = '8dae0402-51c3-4f48-9c8b-053d43ad42fe'
-    );
-
 -- 실행 후 확인사항:
 -- 1. 새로운 교사가 로그인할 때 500 에러가 발생하지 않는지 확인
 -- 2. 온보딩 페이지에서 학교 정보를 저장할 수 있는지 확인

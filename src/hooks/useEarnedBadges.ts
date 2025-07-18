@@ -1,31 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
-import { EarnedBadge, Badge } from "../types";
-
-// Supabase JOIN 결과 타입 정의
-interface BadgeJoinResult {
-  id: string;
-  user_id: string;
-  badge_id: string;
-  earned_at: string;
-  badge_type?: "mission" | "weekly";
-  reward_text?: string;
-  reward_used?: boolean;
-  badges: {
-    id: string;
-    name: string;
-    description: string | null;
-    image_path: string;
-    created_at: string;
-    badge_type?: "mission" | "weekly";
-  };
-}
+import { EarnedBadge } from "../types"; // types.ts에서 import
 
 export const useEarnedBadges = (
   badgeType?: "mission" | "weekly"
 ) => {
-  const { userProfile } = useAuth(); // user 대신 userProfile 사용
+  const { userProfile } = useAuth();
   const [earnedBadges, setEarnedBadges] = useState<
     EarnedBadge[]
   >([]);
@@ -46,77 +27,121 @@ export const useEarnedBadges = (
     setError(null);
 
     try {
-      // earned_badges 테이블에서 JOIN을 통해 badge 정보도 함께 가져옴
-      let query = supabase
-        .from("earned_badges")
-        .select(
-          `
-          id,
-          user_id,
-          badge_id,
-          earned_at,
-          badge_type,
-          reward_text,
-          reward_used,
-          badges:badge_id (
-            id,
-            name,
-            description,
-            image_path,
-            created_at,
-            badge_type
-          )
-        `
-        )
-        .eq("student_id", userProfile.id); // user.id -> userProfile.id
-
-      // 배지 유형에 따른 필터링
-      if (badgeType) {
-        query = query.eq("badge_type", badgeType);
-      }
-
-      const { data, error: fetchError } = await query.order(
-        "earned_date",
-        {
-          ascending: false,
-        }
+      console.log(
+        "[useEarnedBadges] Fetching for student:",
+        userProfile.id
       );
 
-      if (fetchError) throw fetchError;
+      const results: EarnedBadge[] = [];
 
-      // 데이터 변형: JOIN 결과를 EarnedBadge 타입에 맞게 변환
-      // 타입 단언을 사용하여 타입 안전성 보장
-      const formattedBadges: EarnedBadge[] =
-        data?.map((item) => {
-          // 타입 단언으로 item을 BadgeJoinResult로 취급
-          const joinResult =
-            item as unknown as BadgeJoinResult;
-          return {
-            id: joinResult.id,
-            user_id: joinResult.user_id,
-            badge_id: joinResult.badge_id,
-            earned_at: joinResult.earned_at,
-            badge_type:
-              joinResult.badge_type ||
-              joinResult.badges.badge_type ||
-              "mission",
-            weekly_reward_goal: joinResult.reward_text,
-            reward_used: joinResult.reward_used || false,
-            badge: {
-              id: joinResult.badges.id,
-              name: joinResult.badges.name,
-              description: joinResult.badges.description,
-              image_path: joinResult.badges.image_path,
-              created_at: joinResult.badges.created_at,
-              badge_type:
-                joinResult.badges.badge_type ||
-                joinResult.badge_type ||
-                "mission",
-            } as Badge,
-          };
-        }) || [];
+      // 1. 시스템 배지 가져오기
+      const { data: systemBadges, error: systemError } =
+        await supabase
+          .from("student_system_badges")
+          .select(
+            `
+          *,
+          system_badges (*)
+        `
+          )
+          .eq("student_id", userProfile.id)
+          .order("earned_date", { ascending: false });
 
-      setEarnedBadges(formattedBadges);
+      if (systemError) {
+        console.error(
+          "[useEarnedBadges] System badges error:",
+          systemError
+        );
+      } else if (systemBadges) {
+        // 시스템 배지를 EarnedBadge 형식으로 변환
+        systemBadges.forEach((sb) => {
+          if (sb.system_badges) {
+            results.push({
+              id: sb.id,
+              user_id: sb.student_id,
+              badge_id: sb.system_badge_id,
+              earned_at: sb.earned_at || sb.earned_date,
+              badge: {
+                id: sb.system_badge_id,
+                name: sb.system_badges.name,
+                description:
+                  sb.system_badges.description || "",
+                image_path: sb.system_badges.icon || "",
+                badge_type:
+                  sb.system_badges.type || "achievement",
+                created_at:
+                  sb.system_badges.created_at ||
+                  new Date().toISOString(),
+              },
+              // 주간 보상 관련 필드는 undefined
+              weekly_reward_goal: undefined,
+              reward_used: false,
+            });
+          }
+        });
+      }
+
+      // 2. 커스텀 배지 가져오기
+      const { data: customBadges, error: customError } =
+        await supabase
+          .from("student_custom_badges")
+          .select(
+            `
+          *,
+          badges (*)
+        `
+          )
+          .eq("student_id", userProfile.id)
+          .order("earned_date", { ascending: false });
+
+      if (customError) {
+        console.error(
+          "[useEarnedBadges] Custom badges error:",
+          customError
+        );
+      } else if (customBadges) {
+        // 커스텀 배지를 EarnedBadge 형식으로 변환
+        customBadges.forEach((cb) => {
+          if (cb.badges) {
+            results.push({
+              id: cb.id,
+              user_id: cb.student_id,
+              badge_id: cb.badge_id,
+              earned_at: cb.earned_at || cb.earned_date,
+              badge: {
+                id: cb.badge_id,
+                name: cb.badges.name,
+                description: cb.badges.description || "",
+                image_path: cb.badges.icon || "",
+                badge_type: cb.badges.type || "achievement",
+                created_at:
+                  cb.badges.created_at ||
+                  new Date().toISOString(),
+              },
+              // 주간 보상 관련 필드는 undefined
+              weekly_reward_goal: undefined,
+              reward_used: false,
+            });
+          }
+        });
+      }
+
+      // badgeType에 따른 필터링
+      let filteredResults = results;
+      if (badgeType) {
+        filteredResults = results.filter(
+          (badge) => badge.badge?.badge_type === badgeType
+        );
+      }
+
+      console.log("[useEarnedBadges] Query result:", {
+        totalResults: results.length,
+        filteredResults: filteredResults.length,
+        userProfileId: userProfile.id,
+        badgeType,
+      });
+
+      setEarnedBadges(filteredResults);
     } catch (err) {
       console.error(
         "획득한 배지 목록을 가져오는 중 오류 발생:",
@@ -128,7 +153,7 @@ export const useEarnedBadges = (
     } finally {
       setLoading(false);
     }
-  }, [userProfile, badgeType]); // user -> userProfile
+  }, [userProfile, badgeType]);
 
   useEffect(() => {
     fetchEarnedBadges();

@@ -9,6 +9,10 @@ import {
   LuArrowDown,
   LuUser,
   LuPalette,
+  LuGift,
+  LuCheck,
+  LuEye,
+  LuEyeOff,
 } from "react-icons/lu";
 import WeeklyBadgeSetting from "../components/WeeklyBadgeSetting";
 import AccountSettings from "../components/AccountSettings";
@@ -16,6 +20,8 @@ import PinAuthModal from "../components/PinAuthModal";
 import ThemeManager from "../components/ThemeManager";
 import { useNavigate } from "react-router-dom";
 import { Mission } from "../types";
+import { supabase } from "../lib/supabaseClient";
+import { toast } from "react-hot-toast";
 
 const MissionSettingsPage: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -37,12 +43,32 @@ const MissionSettingsPage: React.FC = () => {
   const [pinVerified, setPinVerified] =
     useState<boolean>(false);
 
+  // 주간 보상 관련 상태
+  const [weeklyReward, setWeeklyReward] = useState("");
+  const [showWeeklyReward, setShowWeeklyReward] =
+    useState(true);
+  const [savingWeeklyReward, setSavingWeeklyReward] =
+    useState(false);
+
   // 페이지 로드 시 PIN 인증 상태 확인
   useEffect(() => {
     // 페이지 로드될 때마다 항상 PIN 인증 요구
     setPinVerified(false);
     setShowPinAuth(true);
   }, [user]);
+
+  // 사용자 정보에서 주간 보상 설정 가져오기
+  useEffect(() => {
+    if (userProfile) {
+      setWeeklyReward(
+        userProfile.weekly_reward ||
+          "이번 주 미션을 모두 달성하면 받을 보상"
+      );
+      setShowWeeklyReward(
+        userProfile.show_weekly_reward !== false
+      );
+    }
+  }, [userProfile]);
 
   // 디버깅용 로그
   useEffect(() => {
@@ -79,6 +105,31 @@ const MissionSettingsPage: React.FC = () => {
     });
 
     setNewMissionContent("");
+  };
+
+  // 주간 보상 설정 저장
+  const saveWeeklyRewardSettings = async () => {
+    if (!userProfile) return;
+
+    setSavingWeeklyReward(true);
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({
+          weekly_reward: weeklyReward,
+          show_weekly_reward: showWeeklyReward,
+        })
+        .eq("id", userProfile.id);
+
+      if (error) throw error;
+
+      toast.success("주간 보상 설정이 저장되었습니다.");
+    } catch (error) {
+      console.error("주간 보상 설정 저장 오류:", error);
+      toast.error("주간 보상 설정 저장에 실패했습니다.");
+    } finally {
+      setSavingWeeklyReward(false);
+    }
   };
 
   // 미션 순서 위로 이동
@@ -281,6 +332,86 @@ const MissionSettingsPage: React.FC = () => {
                 </form>
               </>
             )}
+          </div>
+
+          {/* 주간 보상 설정 섹션 */}
+          <div className="mb-12">
+            <h1
+              className="text-xl font-bold mb-8 flex items-center"
+              style={{
+                color: "var(--color-text-primary)",
+              }}>
+              <LuGift className="mr-2" /> 주간 보상 설정
+            </h1>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">
+                  주간 보상 내용
+                </label>
+                <textarea
+                  value={weeklyReward}
+                  onChange={(e) =>
+                    setWeeklyReward(e.target.value)
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg resize-none"
+                  rows={3}
+                  placeholder="이번 주 미션을 모두 달성하면 받을 보상을 입력하세요"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showWeeklyReward}
+                    onChange={(e) =>
+                      setShowWeeklyReward(e.target.checked)
+                    }
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="ml-2 flex items-center">
+                    {showWeeklyReward ? (
+                      <LuEye className="mr-1" size={16} />
+                    ) : (
+                      <LuEyeOff
+                        className="mr-1"
+                        size={16}
+                      />
+                    )}
+                    학생들에게 주간 보상 표시
+                  </span>
+                </label>
+              </div>
+
+              <button
+                onClick={saveWeeklyRewardSettings}
+                disabled={savingWeeklyReward}
+                className="w-full px-4 py-2 rounded-lg text-white font-medium flex items-center justify-center transition-colors"
+                style={{
+                  backgroundColor:
+                    "var(--color-primary-medium)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!savingWeeklyReward) {
+                    e.currentTarget.style.backgroundColor =
+                      "var(--color-primary-dark)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor =
+                    "var(--color-primary-medium)";
+                }}>
+                {savingWeeklyReward ? (
+                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-white mr-2"></span>
+                ) : (
+                  <LuCheck className="mr-2" />
+                )}
+                {savingWeeklyReward
+                  ? "저장 중..."
+                  : "저장하기"}
+              </button>
+            </div>
           </div>
 
           {/* 주간 배지 설정 섹션 */}
