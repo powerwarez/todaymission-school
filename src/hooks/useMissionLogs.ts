@@ -10,9 +10,7 @@ import { DateTime } from "luxon";
 const playSound = (soundFile: string) => {
   const audio = new Audio(soundFile);
   audio.load();
-  audio
-    .play()
-    .catch((e) => console.error("Error playing sound:", e));
+  audio.play().catch((e) => console.error("Error playing sound:", e));
 };
 
 export const useMissionLogs = (formattedDate: string) => {
@@ -23,19 +21,19 @@ export const useMissionLogs = (formattedDate: string) => {
   const [error, setError] = useState<string | null>(null);
 
   // 오늘 완료된 로그 수 상태 추가 (예측용)
-  const [completedTodayCount, setCompletedTodayCount] =
-    useState(0);
+  const [completedTodayCount, setCompletedTodayCount] = useState(0);
   // 전체 완료 로그 수 상태 추가 (예측용)
-  const [totalCompletedCount, setTotalCompletedCount] =
-    useState<number | null>(null);
+  const [totalCompletedCount, setTotalCompletedCount] = useState<number | null>(
+    null
+  );
   // 오늘 필요한 총 미션 수 상태 추가 (예측용)
-  const [totalMissionsToday, setTotalMissionsToday] =
-    useState<number | null>(null);
+  const [totalMissionsToday, setTotalMissionsToday] = useState<number | null>(
+    null
+  );
   // 이전에 획득한 배지 ID 목록 상태 추가 (예측용, Set 사용) - 최초 획득 확인용
-  const [
-    previouslyEarnedBadgeIds,
-    setPreviouslyEarnedBadgeIds,
-  ] = useState<Set<string>>(new Set());
+  const [previouslyEarnedBadgeIds, setPreviouslyEarnedBadgeIds] = useState<
+    Set<string>
+  >(new Set());
 
   const fetchLogs = useCallback(async () => {
     console.log("[useMissionLogs] fetchLogs called", {
@@ -45,9 +43,7 @@ export const useMissionLogs = (formattedDate: string) => {
     });
 
     if (!userProfile) {
-      console.log(
-        "[useMissionLogs] Waiting for userProfile..."
-      );
+      console.log("[useMissionLogs] Waiting for userProfile...");
       return;
     }
 
@@ -77,47 +73,34 @@ export const useMissionLogs = (formattedDate: string) => {
         .lte("completed_at", endOfDay);
 
       if (fetchError) {
-        console.error(
-          "[useMissionLogs] 조회 에러:",
-          fetchError
-        );
+        console.error("[useMissionLogs] 조회 에러:", fetchError);
         throw fetchError;
       }
 
       const logsData = data || [];
-      console.log(
-        "[useMissionLogs] Fetched logs:",
-        logsData
-      );
+      console.log("[useMissionLogs] Fetched logs:", logsData);
       setLogs(logsData);
       setCompletedTodayCount(logsData.length);
     } catch (err: unknown) {
       console.error("Error fetching mission logs:", err);
-      setError(
-        "미션 로그를 불러오는 중 오류가 발생했습니다."
-      );
+      setError("미션 로그를 불러오는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   }, [userProfile, formattedDate]);
 
   useEffect(() => {
-    console.log(
-      "[useMissionLogs] useEffect triggered for fetchLogs"
-    );
+    console.log("[useMissionLogs] useEffect triggered for fetchLogs");
     fetchLogs();
   }, [fetchLogs]);
 
   // 데이터 로딩 시 관련 상태 업데이트
   const fetchInitialData = useCallback(async () => {
-    console.log(
-      "[useMissionLogs] fetchInitialData called",
-      {
-        user: !!user,
-        userProfile: !!userProfile,
-        formattedDate,
-      }
-    );
+    console.log("[useMissionLogs] fetchInitialData called", {
+      user: !!user,
+      userProfile: !!userProfile,
+      formattedDate,
+    });
 
     if (!userProfile) {
       console.log(
@@ -132,27 +115,26 @@ export const useMissionLogs = (formattedDate: string) => {
     setError(null);
     try {
       // Fetch logs for the specific date to get initial completedTodayCount
-      const { data: logsData, error: logsError } =
-        await supabase
-          .from("mission_logs")
-          .select("*") // count만 필요하므로 id만 가져옴
-          .eq("student_id", userProfile.id)
-          .gte(
-            "completed_at",
-            DateTime.fromISO(formattedDate, {
-              zone: "Asia/Seoul",
-            })
-              .startOf("day")
-              .toISO()!
-          )
-          .lte(
-            "completed_at",
-            DateTime.fromISO(formattedDate, {
-              zone: "Asia/Seoul",
-            })
-              .endOf("day")
-              .toISO()!
-          );
+      const { data: logsData, error: logsError } = await supabase
+        .from("mission_logs")
+        .select("*") // count만 필요하므로 id만 가져옴
+        .eq("student_id", userProfile.id)
+        .gte(
+          "completed_at",
+          DateTime.fromISO(formattedDate, {
+            zone: "Asia/Seoul",
+          })
+            .startOf("day")
+            .toISO()!
+        )
+        .lte(
+          "completed_at",
+          DateTime.fromISO(formattedDate, {
+            zone: "Asia/Seoul",
+          })
+            .endOf("day")
+            .toISO()!
+        );
 
       if (logsError) throw logsError;
       const initialLogs = logsData || [];
@@ -170,22 +152,18 @@ export const useMissionLogs = (formattedDate: string) => {
       }
 
       if (!schoolId) {
-        console.error(
-          "[useMissionLogs] School ID not found",
-          {
-            userProfile,
-            role: userProfile?.role,
-            school_id: userProfile?.school_id,
-          }
-        );
+        console.error("[useMissionLogs] School ID not found", {
+          userProfile,
+          role: userProfile?.role,
+          school_id: userProfile?.school_id,
+        });
         return;
       }
 
-      const { count: missionsCount, error: missionsError } =
-        await supabase
-          .from("missions")
-          .select("id", { count: "exact", head: true })
-          .eq("school_id", schoolId);
+      const { count: missionsCount, error: missionsError } = await supabase
+        .from("missions")
+        .select("id", { count: "exact", head: true })
+        .eq("school_id", schoolId);
 
       if (missionsError) throw missionsError;
       setTotalMissionsToday(missionsCount ?? 0);
@@ -194,11 +172,10 @@ export const useMissionLogs = (formattedDate: string) => {
       );
 
       // Fetch total completed count (all time)
-      const { count: totalCount, error: totalCountError } =
-        await supabase
-          .from("mission_logs")
-          .select("id", { count: "exact", head: true }) // count만 가져옴
-          .eq("student_id", userProfile.id);
+      const { count: totalCount, error: totalCountError } = await supabase
+        .from("mission_logs")
+        .select("id", { count: "exact", head: true }) // count만 가져옴
+        .eq("student_id", userProfile.id);
 
       if (totalCountError) throw totalCountError;
       setTotalCompletedCount(totalCount ?? 0);
@@ -237,10 +214,7 @@ export const useMissionLogs = (formattedDate: string) => {
       // 배지 시스템이 구현될 때까지 빈 Set 사용
       setPreviouslyEarnedBadgeIds(new Set());
     } catch (err: unknown) {
-      console.error(
-        "Error fetching initial data for badge prediction:",
-        err
-      );
+      console.error("Error fetching initial data for badge prediction:", err);
       // 에러가 발생해도 기본 기능은 작동하도록 에러 메시지 제거
       // setError("초기 데이터 로딩 중 오류 발생");
     } finally {
@@ -258,9 +232,7 @@ export const useMissionLogs = (formattedDate: string) => {
 
     // 상태 로드 확인 (totalMissionsToday는 null일 수 있음)
     if (totalMissionsToday === null) {
-      console.warn(
-        "[addLog] totalMissionsToday state not loaded yet."
-      );
+      console.warn("[addLog] totalMissionsToday state not loaded yet.");
       return null;
     }
 
@@ -308,30 +280,22 @@ export const useMissionLogs = (formattedDate: string) => {
       console.log("🎉 일일 미션 모두 달성!");
       // 시스템 배지 자동 부여
       try {
-        const { error } = await supabase
-          .from("student_system_badges")
-          .insert({
-            student_id: userProfile.id,
-            system_badge_id: dailyCompleteBadgeId,
-            earned_date: formattedDate,
-          });
+        const { error } = await supabase.from("student_system_badges").insert({
+          student_id: userProfile.id,
+          system_badge_id: dailyCompleteBadgeId,
+          earned_date: formattedDate,
+        });
 
         if (error && error.code !== "23505") {
           // 중복 에러가 아닌 경우만 로그
-          console.error(
-            "일일미션 달성 배지 저장 실패:",
-            error
-          );
+          console.error("일일미션 달성 배지 저장 실패:", error);
         } else if (!error) {
           console.log("✅ 일일미션 달성 배지 획득!");
           // Toast 알림 표시
-          toast.success(
-            "🏆 오늘의 미션 달성! 배지를 획득했습니다!",
-            {
-              duration: 4000,
-              position: "top-center",
-            }
-          );
+          toast.success("🏆 오늘의 미션 달성! 배지를 획득했습니다!", {
+            duration: 4000,
+            position: "top-center",
+          });
           showBadgeNotification("daily_mission_complete");
         }
       } catch (err) {
@@ -344,17 +308,13 @@ export const useMissionLogs = (formattedDate: string) => {
       const todayKSTString = formattedDate;
 
       // 로그 존재 여부 확인
-      const { error: checkError, count: existingLogCount } =
-        await supabase
-          .from("mission_logs")
-          .select("id", { count: "exact", head: true })
-          .eq("student_id", userProfile.id)
-          .eq("mission_id", missionId)
-          .gte("completed_at", `${todayKSTString}T00:00:00`)
-          .lte(
-            "completed_at",
-            `${todayKSTString}T23:59:59`
-          );
+      const { error: checkError, count: existingLogCount } = await supabase
+        .from("mission_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", userProfile.id)
+        .eq("mission_id", missionId)
+        .gte("completed_at", `${todayKSTString}T00:00:00`)
+        .lte("completed_at", `${todayKSTString}T23:59:59`);
 
       if (checkError) throw checkError;
       if (existingLogCount && existingLogCount > 0) {
@@ -384,25 +344,50 @@ export const useMissionLogs = (formattedDate: string) => {
         mission_id: missionId,
         completed_at: completedAt,
         formattedDate,
-        note:
-          todayKST === formattedDate
-            ? "실시간 기록"
-            : "과거 날짜 기록",
+        note: todayKST === formattedDate ? "실시간 기록" : "과거 날짜 기록",
       });
 
-      const { data: insertedLog, error: insertError } =
-        await supabase
-          .from("mission_logs")
-          .insert({
+      const { data: insertedLog, error: insertError } = await supabase
+        .from("mission_logs")
+        .insert({
+          student_id: userProfile.id,
+          mission_id: missionId,
+          completed_at: completedAt,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("[addLog] 삽입 에러 상세:", {
+          error: insertError,
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          data: {
             student_id: userProfile.id,
             mission_id: missionId,
             completed_at: completedAt,
-          })
-          .select()
-          .single();
+            formattedDate,
+          },
+        });
 
-      if (insertError) {
-        console.error("[addLog] 삽입 에러:", insertError);
+        // 409 에러 (중복 키) 처리
+        if (insertError.code === "23505") {
+          console.error("[addLog] 중복 키 에러 - UNIQUE 제약 조건 위반");
+
+          // 기존 로그 조회하여 확인
+          const { data: existingLogs } = await supabase
+            .from("mission_logs")
+            .select("*")
+            .eq("student_id", userProfile.id)
+            .eq("mission_id", missionId)
+            .order("completed_at", { ascending: false })
+            .limit(5);
+
+          console.error("[addLog] 해당 미션의 최근 로그:", existingLogs);
+        }
+
         throw insertError;
       }
 
@@ -417,64 +402,53 @@ export const useMissionLogs = (formattedDate: string) => {
 
       try {
         // 해당 미션에 대한 완료 횟수 조회
-        const { data: missionLogCount, error: countError } =
-          await supabase
-            .from("mission_logs")
-            .select("id", { count: "exact" })
-            .eq("student_id", userProfile.id)
-            .eq("mission_id", missionId);
+        const { data: missionLogCount, error: countError } = await supabase
+          .from("mission_logs")
+          .select("id", { count: "exact" })
+          .eq("student_id", userProfile.id)
+          .eq("mission_id", missionId);
 
         if (!countError && missionLogCount !== null) {
           const completedCount = missionLogCount.length;
-          console.log(
-            `미션 ${missionId} 완료 횟수: ${completedCount}`
-          );
+          console.log(`미션 ${missionId} 완료 횟수: ${completedCount}`);
 
           // 해당 미션과 관련된 배지 조회
-          const { data: badges, error: badgeError } =
-            await supabase
-              .from("badges")
-              .select("*")
-              .eq("type", "special")
-              .eq("is_active", true)
-              .contains("criteria", {
-                mission_id: missionId,
-              });
+          const { data: badges, error: badgeError } = await supabase
+            .from("badges")
+            .select("*")
+            .eq("type", "special")
+            .eq("is_active", true)
+            .contains("criteria", {
+              mission_id: missionId,
+            });
 
           if (!badgeError && badges) {
             for (const badge of badges) {
-              const targetCount =
-                badge.criteria.target_count || 1;
+              const targetCount = badge.criteria.target_count || 1;
 
               if (completedCount === targetCount) {
-                console.log(
-                  `배지 획득 조건 충족: ${badge.name}`
-                );
+                console.log(`배지 획득 조건 충족: ${badge.name}`);
 
                 // 이미 획득했는지 확인
-                const { data: existingBadge } =
-                  await supabase
-                    .from("student_custom_badges")
-                    .select("id")
-                    .eq("student_id", userProfile.id)
-                    .eq("badge_id", badge.id)
-                    .single();
+                const { data: existingBadge } = await supabase
+                  .from("student_custom_badges")
+                  .select("id")
+                  .eq("student_id", userProfile.id)
+                  .eq("badge_id", badge.id)
+                  .single();
 
                 if (!existingBadge) {
                   // 배지 부여
-                  const { error: insertError } =
-                    await supabase
-                      .from("student_custom_badges")
-                      .insert({
-                        student_id: userProfile.id,
-                        badge_id: badge.id,
-                        earned_date: formattedDate,
-                      });
+                  const { error: insertError } = await supabase
+                    .from("student_custom_badges")
+                    .insert({
+                      student_id: userProfile.id,
+                      badge_id: badge.id,
+                      earned_date: formattedDate,
+                    });
 
                   if (!insertError) {
-                    console.log(
-                      `✅ 커스텀 배지 획득: ${badge.name}`
-                    );
+                    console.log(`✅ 커스텀 배지 획득: ${badge.name}`);
                     // Toast 알림 표시
                     toast.success(
                       `${badge.icon || "🏅"} ${
@@ -500,28 +474,20 @@ export const useMissionLogs = (formattedDate: string) => {
       console.log("[addLog] 스냅샷 업데이트 시작");
 
       // 먼저 현재 스냅샷 가져오기
-      const { data: snapshot, error: fetchError } =
-        await supabase
-          .from("daily_snapshots")
-          .select("*")
-          .eq("student_id", userProfile.id)
-          .eq("snapshot_date", formattedDate)
-          .single();
+      const { data: snapshot, error: fetchError } = await supabase
+        .from("daily_snapshots")
+        .select("*")
+        .eq("student_id", userProfile.id)
+        .eq("snapshot_date", formattedDate)
+        .single();
 
       if (fetchError) {
-        console.error(
-          "[addLog] 스냅샷 조회 에러:",
-          fetchError
-        );
+        console.error("[addLog] 스냅샷 조회 에러:", fetchError);
       } else if (snapshot) {
         // completed_missions 배열에 mission_id 추가
-        const currentCompleted =
-          snapshot.completed_missions || [];
+        const currentCompleted = snapshot.completed_missions || [];
         if (!currentCompleted.includes(missionId)) {
-          const updatedCompleted = [
-            ...currentCompleted,
-            missionId,
-          ];
+          const updatedCompleted = [...currentCompleted, missionId];
 
           const { error: updateError } = await supabase
             .from("daily_snapshots")
@@ -532,10 +498,7 @@ export const useMissionLogs = (formattedDate: string) => {
             .eq("snapshot_date", formattedDate);
 
           if (updateError) {
-            console.error(
-              "[addLog] 스냅샷 업데이트 에러:",
-              updateError
-            );
+            console.error("[addLog] 스냅샷 업데이트 에러:", updateError);
           } else {
             console.log("[addLog] 스냅샷 업데이트 성공:", {
               mission_id: missionId,
@@ -682,16 +645,12 @@ export const useMissionLogs = (formattedDate: string) => {
       // 7. 상태 업데이트 (함수형 업데이트 사용)
       setLogs((prevLogs) => [...prevLogs, insertedLog]);
       setCompletedTodayCount((prevCount) => prevCount + 1);
-      setTotalCompletedCount(
-        (prevCount) => (prevCount ?? 0) + 1
-      );
+      setTotalCompletedCount((prevCount) => (prevCount ?? 0) + 1);
       // 이전에 획득한 배지 Set 업데이트 (필요한 경우)
       if (badgesToUpdateInSet.size > 0) {
         setPreviouslyEarnedBadgeIds((prevSet) => {
           const newSet = new Set(prevSet);
-          badgesToUpdateInSet.forEach((id) =>
-            newSet.add(id)
-          );
+          badgesToUpdateInSet.forEach((id) => newSet.add(id));
           return newSet;
         });
       }
@@ -711,19 +670,15 @@ export const useMissionLogs = (formattedDate: string) => {
     if (!userProfile || !formattedDate) return;
     try {
       // 1. 삭제 전 해당 로그 정보 가져오기 (스냅샷 업데이트에 필요)
-      const { data: logData, error: logError } =
-        await supabase
-          .from("mission_logs")
-          .select("mission_id")
-          .eq("id", logId)
-          .single();
+      const { data: logData, error: logError } = await supabase
+        .from("mission_logs")
+        .select("mission_id")
+        .eq("id", logId)
+        .single();
 
       if (logError) throw logError;
       if (!logData) {
-        console.error(
-          "로그 정보를 찾을 수 없습니다:",
-          logId
-        );
+        console.error("로그 정보를 찾을 수 없습니다:", logId);
         return;
       }
 
@@ -736,43 +691,30 @@ export const useMissionLogs = (formattedDate: string) => {
       if (deleteError) throw deleteError;
 
       // --- 삭제 성공 시 클라이언트 상태 업데이트 (함수형 업데이트) ---
-      setLogs((prevLogs) =>
-        prevLogs.filter((log) => log.id !== logId)
-      );
+      setLogs((prevLogs) => prevLogs.filter((log) => log.id !== logId));
 
       // 카운트 감소 (null 체크 및 0 미만 방지)
-      setTotalCompletedCount((prevCount) =>
-        Math.max(0, (prevCount ?? 0) - 1)
-      );
-      setCompletedTodayCount((prevCount) =>
-        Math.max(0, prevCount - 1)
-      );
+      setTotalCompletedCount((prevCount) => Math.max(0, (prevCount ?? 0) - 1));
+      setCompletedTodayCount((prevCount) => Math.max(0, prevCount - 1));
 
-      console.log(
-        "[deleteLog] States updated after deletion."
-      );
+      console.log("[deleteLog] States updated after deletion.");
 
       // 3. 스냅샷 업데이트 - completed_missions 배열에서 mission_id 제거
       console.log("[deleteLog] 스냅샷 업데이트 시작");
 
       // 먼저 현재 스냅샷 가져오기
-      const { data: snapshot, error: fetchError } =
-        await supabase
-          .from("daily_snapshots")
-          .select("*")
-          .eq("student_id", userProfile.id)
-          .eq("snapshot_date", formattedDate)
-          .single();
+      const { data: snapshot, error: fetchError } = await supabase
+        .from("daily_snapshots")
+        .select("*")
+        .eq("student_id", userProfile.id)
+        .eq("snapshot_date", formattedDate)
+        .single();
 
       if (fetchError) {
-        console.error(
-          "[deleteLog] 스냅샷 조회 에러:",
-          fetchError
-        );
+        console.error("[deleteLog] 스냅샷 조회 에러:", fetchError);
       } else if (snapshot) {
         // completed_missions 배열에서 mission_id 제거
-        const currentCompleted =
-          snapshot.completed_missions || [];
+        const currentCompleted = snapshot.completed_missions || [];
         const updatedCompleted = currentCompleted.filter(
           (id: string) => id !== logData.mission_id
         );
@@ -786,10 +728,7 @@ export const useMissionLogs = (formattedDate: string) => {
           .eq("snapshot_date", formattedDate);
 
         if (updateError) {
-          console.error(
-            "[deleteLog] 스냅샷 업데이트 에러:",
-            updateError
-          );
+          console.error("[deleteLog] 스냅샷 업데이트 에러:", updateError);
         } else {
           console.log("[deleteLog] 스냅샷 업데이트 성공:", {
             removed_mission_id: logData.mission_id,
