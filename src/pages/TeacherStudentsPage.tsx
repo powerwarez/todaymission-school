@@ -25,7 +25,16 @@ import {
 import { UserPlus, Search, Download, QrCode, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
-import ReactDOM from "react-dom/client";
+import { pdf } from "@react-pdf/renderer";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  Image,
+  StyleSheet,
+  Font,
+} from "@react-pdf/renderer";
 
 const TeacherStudentsPage: React.FC = () => {
   const { userProfile } = useAuth();
@@ -132,43 +141,115 @@ const TeacherStudentsPage: React.FC = () => {
   };
 
   // 단일 학생 PDF 다운로드
-  const handleDownloadSinglePDF = (student: UserProfile) => {
+  const handleDownloadSinglePDF = async (student: UserProfile) => {
     if (!student.qr_token) {
       toast.error("QR 토큰이 없습니다.");
       return;
     }
 
-    // 임시로 선택된 학생만 포함하는 배열 생성
-    const singleStudentArray = students.filter((s) => s.id === student.id);
+    try {
+      // 한글 폰트 등록
+      Font.register({
+        family: "NotoSansKR",
+        fonts: [
+          {
+            src: "https://fonts.gstatic.com/ea/notosanskr/v2/NotoSansKR-Regular.woff2",
+            fontWeight: 400,
+          },
+          {
+            src: "https://fonts.gstatic.com/ea/notosanskr/v2/NotoSansKR-Bold.woff2",
+            fontWeight: 700,
+          },
+        ],
+      });
 
-    // 새 창에서 PDF 컴포넌트 렌더링
-    const newWindow = window.open("", "_blank");
-    if (newWindow) {
-      newWindow.document.write(`
-        <html>
-          <head>
-            <title>${student.name} - QR 코드</title>
-          </head>
-          <body>
-            <div id="pdf-root"></div>
-          </body>
-        </html>
-      `);
+      // QR 코드 생성
+      const qrData = JSON.stringify({
+        token: student.qr_token,
+        student_name: student.name,
+        school_id: userProfile?.school_id,
+      });
 
-      const container = newWindow.document.getElementById("pdf-root");
-      if (container) {
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <StudentQRCodesPDF
-            students={singleStudentArray.map((s) => ({
-              student_id: s.id,
-              student_name: s.name,
-              qr_token: s.qr_token || "",
-            }))}
-            schoolName={schoolName}
-          />
-        );
-      }
+      const qrCodeDataURL = await QRCode.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#ffffff",
+        },
+      });
+
+      // PDF 스타일
+      const styles = StyleSheet.create({
+        page: {
+          flexDirection: "column",
+          backgroundColor: "#ffffff",
+          padding: 40,
+          fontFamily: "NotoSansKR",
+        },
+        container: {
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        schoolName: {
+          fontSize: 24,
+          fontWeight: 700,
+          marginBottom: 40,
+          color: "#1f2937",
+          textAlign: "center",
+        },
+        studentName: {
+          fontSize: 32,
+          fontWeight: 700,
+          marginBottom: 20,
+          color: "#1f2937",
+          textAlign: "center",
+        },
+        qrCode: {
+          width: 200,
+          height: 200,
+          marginBottom: 30,
+        },
+        instruction: {
+          fontSize: 16,
+          color: "#6b7280",
+          textAlign: "center",
+          marginTop: 20,
+        },
+      });
+
+      // PDF 문서 생성
+      const MyDocument = () => (
+        <Document>
+          <Page size="A4" style={styles.page}>
+            <View style={styles.container}>
+              <Text style={styles.schoolName}>{schoolName}</Text>
+              <Text style={styles.studentName}>{student.name}</Text>
+              <Image style={styles.qrCode} src={qrCodeDataURL} />
+              <Text style={styles.instruction}>
+                태블릿으로 위의 QR 코드를 스캔하세요.
+              </Text>
+            </View>
+          </Page>
+        </Document>
+      );
+
+      // PDF 생성 및 다운로드
+      const blob = await pdf(<MyDocument />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${student.name}_QR코드.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("PDF 다운로드가 완료되었습니다.");
+    } catch (error) {
+      console.error("PDF 생성 오류:", error);
+      toast.error("PDF 생성에 실패했습니다.");
     }
   };
 
