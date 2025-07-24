@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useMissions } from "../hooks/useMissions";
+import { Mission } from "../types";
 import MissionSettingItem from "../components/MissionSettingItem";
+import LoadingWithRefresh from "../components/LoadingWithRefresh";
 import {
   LuPlus,
   LuSettings,
@@ -19,36 +22,23 @@ import AccountSettings from "../components/AccountSettings";
 import PinAuthModal from "../components/PinAuthModal";
 import ThemeManager from "../components/ThemeManager";
 import { useNavigate } from "react-router-dom";
-import { Mission } from "../types";
-import { supabase } from "../lib/supabaseClient";
 import { toast } from "react-hot-toast";
 
 const MissionSettingsPage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
-  const {
-    missions,
-    loading,
-    error,
-    addMission,
-    deleteMission,
-    updateMission,
-  } = useMissions();
-  const [newMissionContent, setNewMissionContent] =
-    useState("");
+  const { missions, loading, error, addMission, deleteMission, updateMission } =
+    useMissions();
+  const [newMissionContent, setNewMissionContent] = useState("");
 
   // PIN 인증 관련 상태
-  const [showPinAuth, setShowPinAuth] =
-    useState<boolean>(true);
-  const [pinVerified, setPinVerified] =
-    useState<boolean>(false);
+  const [showPinAuth, setShowPinAuth] = useState<boolean>(true);
+  const [pinVerified, setPinVerified] = useState<boolean>(false);
 
   // 주간 보상 관련 상태
   const [weeklyReward, setWeeklyReward] = useState("");
-  const [showWeeklyReward, setShowWeeklyReward] =
-    useState(true);
-  const [savingWeeklyReward, setSavingWeeklyReward] =
-    useState(false);
+  const [showWeeklyReward, setShowWeeklyReward] = useState(true);
+  const [savingWeeklyReward, setSavingWeeklyReward] = useState(false);
 
   // 페이지 로드 시 PIN 인증 상태 확인
   useEffect(() => {
@@ -61,12 +51,9 @@ const MissionSettingsPage: React.FC = () => {
   useEffect(() => {
     if (userProfile) {
       setWeeklyReward(
-        userProfile.weekly_reward ||
-          "이번 주 미션을 모두 달성하면 받을 보상"
+        userProfile.weekly_reward || "이번 주 미션을 모두 달성하면 받을 보상"
       );
-      setShowWeeklyReward(
-        userProfile.show_weekly_reward !== false
-      );
+      setShowWeeklyReward(userProfile.show_weekly_reward !== false);
     }
   }, [userProfile]);
 
@@ -134,9 +121,7 @@ const MissionSettingsPage: React.FC = () => {
 
   // 미션 순서 위로 이동
   const handleMoveUp = async (mission: Mission) => {
-    const index = missions.findIndex(
-      (m) => m.id === mission.id
-    );
+    const index = missions.findIndex((m) => m.id === mission.id);
     if (index <= 0) return; // 이미 첫 번째 항목이면 이동 불가
 
     const prevMission = missions[index - 1];
@@ -152,9 +137,7 @@ const MissionSettingsPage: React.FC = () => {
 
   // 미션 순서 아래로 이동
   const handleMoveDown = async (mission: Mission) => {
-    const index = missions.findIndex(
-      (m) => m.id === mission.id
-    );
+    const index = missions.findIndex((m) => m.id === mission.id);
     if (index >= missions.length - 1) return; // 이미 마지막 항목이면 이동 불가
 
     const nextMission = missions[index + 1];
@@ -181,10 +164,7 @@ const MissionSettingsPage: React.FC = () => {
   return (
     <>
       {showPinAuth && !pinVerified && (
-        <PinAuthModal
-          onSuccess={handlePinSuccess}
-          onCancel={handlePinCancel}
-        />
+        <PinAuthModal onSuccess={handlePinSuccess} onCancel={handlePinCancel} />
       )}
 
       {(!showPinAuth || pinVerified) && (
@@ -195,7 +175,8 @@ const MissionSettingsPage: React.FC = () => {
               className="text-2xl font-bold mb-6 flex items-center"
               style={{
                 color: "var(--color-text-primary)",
-              }}>
+              }}
+            >
               <LuPalette className="mr-2" /> 테마 설정
             </h1>
             <ThemeManager />
@@ -207,7 +188,8 @@ const MissionSettingsPage: React.FC = () => {
               className="text-2xl font-bold mb-6 flex items-center"
               style={{
                 color: "var(--color-text-primary)",
-              }}>
+              }}
+            >
               <LuUser className="mr-2" /> 계정 설정
             </h1>
             <AccountSettings />
@@ -216,32 +198,24 @@ const MissionSettingsPage: React.FC = () => {
           {/* 일일 미션 설정 섹션 */}
           <h1
             className="text-2xl font-bold mb-8 flex items-center"
-            style={{ color: "var(--color-text-primary)" }}>
+            style={{ color: "var(--color-text-primary)" }}
+          >
             <LuSettings className="mr-2" /> 오늘의 미션 설정
           </h1>
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <p className="text-gray-600 mb-6">
-              매일 수행할 오늘의 미션을 설정하세요. 수정,
-              삭제, 순서 변경이 가능합니다.
+              매일 수행할 오늘의 미션을 설정하세요. 수정, 삭제, 순서 변경이
+              가능합니다.
             </p>
 
             {error && (
-              <p
-                style={{ color: "var(--color-text-error)" }}
-                className="mb-4">
+              <p style={{ color: "var(--color-text-error)" }} className="mb-4">
                 {error}
               </p>
             )}
 
             {loading ? (
-              <div className="flex justify-center py-8">
-                <div
-                  className="animate-spin rounded-full h-8 w-8 border-b-2"
-                  style={{
-                    borderColor:
-                      "var(--color-primary-medium)",
-                  }}></div>
-              </div>
+              <LoadingWithRefresh />
             ) : (
               <>
                 {missions.length === 0 ? (
@@ -256,36 +230,30 @@ const MissionSettingsPage: React.FC = () => {
                 ) : (
                   <div className="space-y-3 mb-6">
                     {missions.map((mission, index) => (
-                      <div
-                        key={mission.id}
-                        className="flex items-center gap-2">
+                      <div key={mission.id} className="flex items-center gap-2">
                         <div className="flex flex-col justify-center">
                           <button
-                            onClick={() =>
-                              handleMoveUp(mission)
-                            }
+                            onClick={() => handleMoveUp(mission)}
                             disabled={index === 0}
                             className={`p-1 text-gray-500 ${
                               index === 0
                                 ? "opacity-30 cursor-not-allowed"
                                 : "hover:text-gray-700"
                             }`}
-                            title="위로 이동">
+                            title="위로 이동"
+                          >
                             <LuArrowUp size={16} />
                           </button>
                           <button
-                            onClick={() =>
-                              handleMoveDown(mission)
-                            }
-                            disabled={
-                              index === missions.length - 1
-                            }
+                            onClick={() => handleMoveDown(mission)}
+                            disabled={index === missions.length - 1}
                             className={`p-1 text-gray-500 ${
                               index === missions.length - 1
                                 ? "opacity-30 cursor-not-allowed"
                                 : "hover:text-gray-700"
                             }`}
-                            title="아래로 이동">
+                            title="아래로 이동"
+                          >
                             <LuArrowDown size={16} />
                           </button>
                         </div>
@@ -299,15 +267,11 @@ const MissionSettingsPage: React.FC = () => {
                   </div>
                 )}
 
-                <form
-                  onSubmit={handleAddMission}
-                  className="flex gap-2">
+                <form onSubmit={handleAddMission} className="flex gap-2">
                   <input
                     type="text"
                     value={newMissionContent}
-                    onChange={(e) =>
-                      setNewMissionContent(e.target.value)
-                    }
+                    onChange={(e) => setNewMissionContent(e.target.value)}
                     placeholder="새 미션을 입력하세요"
                     className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
@@ -315,8 +279,7 @@ const MissionSettingsPage: React.FC = () => {
                     type="submit"
                     className="text-white p-2 rounded-lg flex items-center"
                     style={{
-                      backgroundColor:
-                        "var(--color-primary-medium)",
+                      backgroundColor: "var(--color-primary-medium)",
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor =
@@ -325,7 +288,8 @@ const MissionSettingsPage: React.FC = () => {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor =
                         "var(--color-primary-medium)";
-                    }}>
+                    }}
+                  >
                     <LuPlus className="mr-1" />
                     추가
                   </button>
@@ -340,7 +304,8 @@ const MissionSettingsPage: React.FC = () => {
               className="text-xl font-bold mb-8 flex items-center"
               style={{
                 color: "var(--color-text-primary)",
-              }}>
+              }}
+            >
               <LuGift className="mr-2" /> 주간 보상 설정
             </h1>
 
@@ -351,9 +316,7 @@ const MissionSettingsPage: React.FC = () => {
                 </label>
                 <textarea
                   value={weeklyReward}
-                  onChange={(e) =>
-                    setWeeklyReward(e.target.value)
-                  }
+                  onChange={(e) => setWeeklyReward(e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-lg resize-none"
                   rows={3}
                   placeholder="이번 주 미션을 모두 달성하면 받을 보상을 입력하세요"
@@ -365,19 +328,14 @@ const MissionSettingsPage: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={showWeeklyReward}
-                    onChange={(e) =>
-                      setShowWeeklyReward(e.target.checked)
-                    }
+                    onChange={(e) => setShowWeeklyReward(e.target.checked)}
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <span className="ml-2 flex items-center">
                     {showWeeklyReward ? (
                       <LuEye className="mr-1" size={16} />
                     ) : (
-                      <LuEyeOff
-                        className="mr-1"
-                        size={16}
-                      />
+                      <LuEyeOff className="mr-1" size={16} />
                     )}
                     학생들에게 주간 보상 표시
                   </span>
@@ -389,8 +347,7 @@ const MissionSettingsPage: React.FC = () => {
                 disabled={savingWeeklyReward}
                 className="w-full px-4 py-2 rounded-lg text-white font-medium flex items-center justify-center transition-colors"
                 style={{
-                  backgroundColor:
-                    "var(--color-primary-medium)",
+                  backgroundColor: "var(--color-primary-medium)",
                 }}
                 onMouseEnter={(e) => {
                   if (!savingWeeklyReward) {
@@ -401,15 +358,14 @@ const MissionSettingsPage: React.FC = () => {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor =
                     "var(--color-primary-medium)";
-                }}>
+                }}
+              >
                 {savingWeeklyReward ? (
                   <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-white mr-2"></span>
                 ) : (
                   <LuCheck className="mr-2" />
                 )}
-                {savingWeeklyReward
-                  ? "저장 중..."
-                  : "저장하기"}
+                {savingWeeklyReward ? "저장 중..." : "저장하기"}
               </button>
             </div>
           </div>
@@ -417,12 +373,11 @@ const MissionSettingsPage: React.FC = () => {
           {/* 주간 배지 설정 섹션 */}
           <h1
             className="text-xl font-bold mb-8 flex items-center"
-            style={{ color: "var(--color-text-primary)" }}>
+            style={{ color: "var(--color-text-primary)" }}
+          >
             <LuSettings className="mr-2" /> 주간 배지 설정
           </h1>
-          {userProfile && (
-            <WeeklyBadgeSetting userId={userProfile.id} />
-          )}
+          {userProfile && <WeeklyBadgeSetting userId={userProfile.id} />}
         </div>
       )}
     </>

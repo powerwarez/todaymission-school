@@ -6,8 +6,8 @@ import { useMissions } from "../hooks/useMissions";
 import { Badge as BadgeType } from "../types"; // Badge 타입 import 추가
 import { generateImagePrompt } from "../utils/geminiPromptGenerator"; // Gemini 프롬프트 생성 함수 import
 import { generateImage } from "../utils/geminiImageGenerator"; // Gemini 이미지 생성 함수 import 추가
+import LoadingWithRefresh from "../components/LoadingWithRefresh";
 import {
-  LuLoader,
   LuTriangle,
   LuPlus,
   LuX,
@@ -511,14 +511,102 @@ const BadgeSettingsPage: React.FC = () => {
 
       {/* 로딩 상태 표시 */}
       {loading && (
-        <div className="flex justify-center items-center py-10">
-          <LuLoader
-            className="animate-spin"
-            style={{ color: "var(--color-primary-medium)" }}
-            size={40}
-          />
-          <p className="ml-3 text-lg text-gray-600">데이터를 불러오는 중...</p>
-        </div>
+        <LoadingWithRefresh
+          onRefresh={() => {
+            setLoading(true);
+            setError(null);
+            const fetchBadgeData = async () => {
+              setLoading(true);
+              setError(null);
+
+              try {
+                // 1. 현재 사용자 정보 확인
+                if (!userProfile) {
+                  console.log("사용자 프로필이 없습니다.");
+                  setLoading(false);
+                  return;
+                }
+
+                // 2. 교사의 배지 목록 가져오기 (badges 테이블)
+                console.log("배지 조회 시작, teacher_id:", userProfile.id);
+
+                const { data: allBadges, error: badgesError } = await supabase
+                  .from("badges")
+                  .select("*") // 모든 컬럼 선택
+                  .eq("teacher_id", userProfile.id)
+                  .eq("is_active", true);
+
+                console.log("배지 조회 결과:", {
+                  data: allBadges,
+                  error: badgesError,
+                  count: allBadges?.length || 0,
+                });
+
+                if (badgesError) throw badgesError;
+                if (!allBadges)
+                  throw new Error("배지 정보를 가져올 수 없습니다.");
+
+                // 3. 교사의 학교 학생들의 배지 획득 기록 가져오기
+                // earned_badges는 아직 사용하지 않으므로 주석 처리
+                /*
+                const {
+                  data: earnedBadgesData,
+                  error: earnedBadgesError,
+                } = await supabase
+                  .from("earned_badges")
+                  .select("badge_id");
+
+                if (earnedBadgesError) {
+                  console.error(
+                    "earned_badges 조회 오류:",
+                    earnedBadgesError
+                  );
+                }
+                */
+                const earnedBadgesData = [];
+
+                // 4. 배지별 획득 횟수 계산
+                const badgeCounts: { [key: string]: number } = {};
+
+                if (earnedBadgesData) {
+                  earnedBadgesData.forEach((record: { badge_id: string }) => {
+                    // 일반 배지 카운트
+                    badgeCounts[record.badge_id] =
+                      (badgeCounts[record.badge_id] || 0) + 1;
+                  });
+                }
+
+                // weekly_streak_1 배지의 카운트는 별도로 계산 필요 (TODO)
+
+                // 5. 배지 데이터 준비
+                const displayData: DisplayBadge[] = (
+                  allBadges as BadgeType[]
+                ).map((badge) => {
+                  return {
+                    ...badge,
+                    count: badgeCounts[badge.id] || 0,
+                  } as DisplayBadge;
+                });
+
+                setBadges(displayData);
+              } catch (err: unknown) {
+                console.error("데이터 로딩 중 에러 발생:", err);
+                if (err instanceof Error) {
+                  setError(err.message);
+                } else if (typeof err === "string") {
+                  setError(err);
+                } else {
+                  setError(
+                    "데이터를 불러오는 중 알 수 없는 오류가 발생했습니다."
+                  );
+                }
+              } finally {
+                setLoading(false);
+              }
+            };
+            fetchBadgeData();
+          }}
+        />
       )}
 
       {/* 에러 상태 표시 */}

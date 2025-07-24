@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
+import LoadingWithRefresh from "../components/LoadingWithRefresh";
 import {
   Card,
   CardContent,
@@ -304,14 +305,7 @@ const TeacherStatisticsPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">통계 불러오는 중...</p>
-        </div>
-      </div>
-    );
+    return <LoadingWithRefresh />;
   }
 
   return (
