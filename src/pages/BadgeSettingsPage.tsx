@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useMissions } from "../hooks/useMissions";
 import { Badge as BadgeType } from "../types"; // Badge 타입 import 추가
 import { generateImagePrompt } from "../utils/geminiPromptGenerator"; // Gemini 프롬프트 생성 함수 import
+import { generateImage } from "../utils/geminiImageGenerator"; // Gemini 이미지 생성 함수 import 추가
 import {
   LuLoader,
   LuTriangle,
