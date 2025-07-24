@@ -23,11 +23,10 @@ const AccountSettings: React.FC = () => {
   useEffect(() => {
     if (userProfile) {
       setChildName(userProfile.name);
-      // 데이터베이스의 PIN을 4자리 문자열로 변환
-      const dbPin = userProfile.pin_code?.toString().padStart(4, "0") || "0000";
-      setPinCode(dbPin);
-      // PIN이 0000인지 확인
-      setIsDefaultPin(userProfile.pin_code === 0 || !userProfile.pin_code);
+      // PIN이 text 타입이므로 직접 사용
+      setPinCode(userProfile.pin_code || "0000");
+      // PIN이 "0000"인지 확인
+      setIsDefaultPin(!userProfile.pin_code || userProfile.pin_code === "0000");
     }
   }, [userProfile]);
 
@@ -70,7 +69,7 @@ const AccountSettings: React.FC = () => {
         .from("users")
         .update({
           name: childName.trim(),
-          pin_code: parseInt(pinCode), // 문자열을 숫자로 변환
+          pin_code: pinCode, // text 타입으로 직접 저장
         })
         .eq("id", userProfile.id);
 
@@ -95,8 +94,10 @@ const AccountSettings: React.FC = () => {
 
   const isFormChanged = () => {
     if (!userProfile) return false;
-    const dbPin = userProfile.pin_code?.toString().padStart(4, "0") || "0000";
-    return childName !== userProfile.name || pinCode !== dbPin;
+    return (
+      childName !== userProfile.name ||
+      pinCode !== (userProfile.pin_code || "0000")
+    );
   };
 
   return (

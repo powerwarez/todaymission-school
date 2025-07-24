@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -17,11 +18,15 @@ import {
 } from "../components/ui/select";
 import { Badge } from "../components/ui/badge";
 import {
-  TrendingUp,
-  Users,
-  Award,
-  Target,
-} from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
+import { TrendingUp, Users, Award, Target, AlertCircle } from "lucide-react";
 import { DateTime } from "luxon";
 
 interface StudentStats {
@@ -42,31 +47,53 @@ interface MissionStats {
 
 const TeacherStatisticsPage: React.FC = () => {
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] =
-    useState("today");
-  const [studentStats, setStudentStats] = useState<
-    StudentStats[]
-  >([]);
-  const [missionStats, setMissionStats] = useState<
-    MissionStats[]
-  >([]);
+  const [selectedPeriod, setSelectedPeriod] = useState("today");
+  const [studentStats, setStudentStats] = useState<StudentStats[]>([]);
+  const [missionStats, setMissionStats] = useState<MissionStats[]>([]);
   const [overallStats, setOverallStats] = useState({
     totalStudents: 0,
     averageCompletionRate: 0,
     totalMissionsCompleted: 0,
     totalBadgesEarned: 0,
   });
+  const [showNoMissionDialog, setShowNoMissionDialog] = useState(false);
+
+  // 미션이 있는지 체크
+  useEffect(() => {
+    const checkMissions = async () => {
+      if (!userProfile?.school_id) return;
+
+      try {
+        const { data: missions, error } = await supabase
+          .from("missions")
+          .select("id")
+          .eq("school_id", userProfile.school_id)
+          .limit(1);
+
+        if (error) {
+          console.error("미션 체크 오류:", error);
+          return;
+        }
+
+        const hasAnyMissions = missions && missions.length > 0;
+
+        // 미션이 없고 처음 로그인한 교사인 경우 다이얼로그 표시
+        if (!hasAnyMissions && userProfile.role === "teacher") {
+          setShowNoMissionDialog(true);
+        }
+      } catch (error) {
+        console.error("미션 체크 중 오류:", error);
+      }
+    };
+
+    checkMissions();
+  }, [userProfile]);
 
   useEffect(() => {
-    console.log(
-      "TeacherStatisticsPage - userProfile:",
-      userProfile
-    );
-    console.log(
-      "TeacherStatisticsPage - selectedPeriod:",
-      selectedPeriod
-    );
+    console.log("TeacherStatisticsPage - userProfile:", userProfile);
+    console.log("TeacherStatisticsPage - selectedPeriod:", selectedPeriod);
 
     if (userProfile?.id) {
       fetchStatistics();
@@ -82,9 +109,7 @@ const TeacherStatisticsPage: React.FC = () => {
     });
 
     if (!userProfile?.id || !userProfile?.school_id) {
-      console.log(
-        "fetchStatistics - Missing required data, stopping"
-      );
+      console.log("fetchStatistics - Missing required data, stopping");
       setLoading(false);
       return;
     }
@@ -152,25 +177,16 @@ const TeacherStatisticsPage: React.FC = () => {
         .from("student_system_badges")
         .select("student_id")
         .in("student_id", studentIds)
-        .gte(
-          "earned_date",
-          startDate.toFormat("yyyy-MM-dd")
-        );
+        .gte("earned_date", startDate.toFormat("yyyy-MM-dd"));
 
       const { data: customBadges } = await supabase
         .from("student_custom_badges")
         .select("student_id")
         .in("student_id", studentIds)
-        .gte(
-          "earned_date",
-          startDate.toFormat("yyyy-MM-dd")
-        );
+        .gte("earned_date", startDate.toFormat("yyyy-MM-dd"));
 
       // Combine both badge types
-      const earnedBadges = [
-        ...(systemBadges || []),
-        ...(customBadges || []),
-      ];
+      const earnedBadges = [...(systemBadges || []), ...(customBadges || [])];
 
       console.log("Badge counts:", {
         systemBadges: systemBadges?.length || 0,
@@ -182,10 +198,7 @@ const TeacherStatisticsPage: React.FC = () => {
       });
 
       // Calculate student statistics
-      const studentStatsMap = new Map<
-        string,
-        StudentStats
-      >();
+      const studentStatsMap = new Map<string, StudentStats>();
 
       students.forEach((student) => {
         studentStatsMap.set(student.id, {
@@ -220,23 +233,16 @@ const TeacherStatisticsPage: React.FC = () => {
       studentStatsMap.forEach((stats) => {
         if (stats.total_missions > 0) {
           stats.completion_rate = Math.round(
-            (stats.completed_missions /
-              stats.total_missions) *
-              100
+            (stats.completed_missions / stats.total_missions) * 100
           );
         }
       });
 
-      const studentStatsArray = Array.from(
-        studentStatsMap.values()
-      );
+      const studentStatsArray = Array.from(studentStatsMap.values());
       setStudentStats(studentStatsArray);
 
       // Calculate mission statistics
-      const missionStatsMap = new Map<
-        string,
-        MissionStats
-      >();
+      const missionStatsMap = new Map<string, MissionStats>();
 
       missions?.forEach((mission) => {
         missionStatsMap.set(mission.id, {
@@ -256,8 +262,7 @@ const TeacherStatisticsPage: React.FC = () => {
 
       missionStatsMap.forEach((stats) => {
         const maxAttempts =
-          students.length *
-          Math.ceil(now.diff(startDate, "days").days);
+          students.length * Math.ceil(now.diff(startDate, "days").days);
         if (maxAttempts > 0) {
           stats.completion_rate = Math.round(
             (stats.total_attempts / maxAttempts) * 100
@@ -265,9 +270,7 @@ const TeacherStatisticsPage: React.FC = () => {
         }
       });
 
-      const missionStatsArray = Array.from(
-        missionStatsMap.values()
-      );
+      const missionStatsArray = Array.from(missionStatsMap.values());
       setMissionStats(missionStatsArray);
 
       // Calculate overall statistics
@@ -282,10 +285,8 @@ const TeacherStatisticsPage: React.FC = () => {
       const avgCompletionRate =
         studentStatsArray.length > 0
           ? Math.round(
-              studentStatsArray.reduce(
-                (sum, s) => sum + s.completion_rate,
-                0
-              ) / studentStatsArray.length
+              studentStatsArray.reduce((sum, s) => sum + s.completion_rate, 0) /
+                studentStatsArray.length
             )
           : 0;
 
@@ -307,193 +308,213 @@ const TeacherStatisticsPage: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">
-            통계 불러오는 중...
-          </p>
+          <p className="mt-4 text-gray-600">통계 불러오는 중...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">통계</h1>
-          <p className="text-gray-600 mt-1">
-            학생들의 미션 수행 현황을 확인합니다.
-          </p>
+    <>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">통계</h1>
+            <p className="text-gray-600 mt-1">
+              학생들의 미션 수행 현황을 확인합니다.
+            </p>
+          </div>
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-40 bg-white border-gray-300">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white border-gray-300">
+              <SelectItem value="today">오늘</SelectItem>
+              <SelectItem value="week">이번 주</SelectItem>
+              <SelectItem value="month">이번 달</SelectItem>
+              <SelectItem value="year">올해</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select
-          value={selectedPeriod}
-          onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="w-40 bg-white border-gray-300">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-white border-gray-300">
-            <SelectItem value="today">오늘</SelectItem>
-            <SelectItem value="week">이번 주</SelectItem>
-            <SelectItem value="month">이번 달</SelectItem>
-            <SelectItem value="year">올해</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Overall Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Overall Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <Users className="h-8 w-8 text-blue-600 mb-2" />
+              <CardTitle className="text-lg">전체 학생</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">
+                {overallStats.totalStudents}명
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <TrendingUp className="h-8 w-8 text-green-600 mb-2" />
+              <CardTitle className="text-lg">평균 달성률</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">
+                {overallStats.averageCompletionRate}%
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <Target className="h-8 w-8 text-purple-600 mb-2" />
+              <CardTitle className="text-lg">완료된 미션</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">
+                {overallStats.totalMissionsCompleted}개
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <Award className="h-8 w-8 text-yellow-600 mb-2" />
+              <CardTitle className="text-lg">획득한 배지</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">
+                {overallStats.totalBadgesEarned}개
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Student Rankings */}
         <Card>
-          <CardHeader className="pb-3">
-            <Users className="h-8 w-8 text-blue-600 mb-2" />
-            <CardTitle className="text-lg">
-              전체 학생
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>학생별 달성률</CardTitle>
+            <CardDescription>기간 내 미션 달성률 순위</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">
-              {overallStats.totalStudents}명
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <TrendingUp className="h-8 w-8 text-green-600 mb-2" />
-            <CardTitle className="text-lg">
-              평균 달성률
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {overallStats.averageCompletionRate}%
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <Target className="h-8 w-8 text-purple-600 mb-2" />
-            <CardTitle className="text-lg">
-              완료된 미션
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {overallStats.totalMissionsCompleted}개
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <Award className="h-8 w-8 text-yellow-600 mb-2" />
-            <CardTitle className="text-lg">
-              획득한 배지
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {overallStats.totalBadgesEarned}개
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Student Rankings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>학생별 달성률</CardTitle>
-          <CardDescription>
-            기간 내 미션 달성률 순위
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {studentStats.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">
-              아직 데이터가 없습니다.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {studentStats
-                .sort(
-                  (a, b) =>
-                    b.completion_rate - a.completion_rate
-                )
-                .slice(0, 10)
-                .map((student, index) => (
-                  <div
-                    key={student.student_id}
-                    className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-lg font-bold text-gray-400 w-8">
-                        {index + 1}
-                      </span>
-                      <span className="font-medium">
-                        {student.student_name}
-                      </span>
+            {studentStats.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">
+                아직 데이터가 없습니다.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {studentStats
+                  .sort((a, b) => b.completion_rate - a.completion_rate)
+                  .slice(0, 10)
+                  .map((student, index) => (
+                    <div
+                      key={student.student_id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="text-lg font-bold text-gray-400 w-8">
+                          {index + 1}
+                        </span>
+                        <span className="font-medium">
+                          {student.student_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-500">
+                          {student.completed_missions}/{student.total_missions}{" "}
+                          완료
+                        </span>
+                        <Badge
+                          variant={
+                            student.completion_rate >= 80
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {student.completion_rate}%
+                        </Badge>
+                      </div>
                     </div>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Mission Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle>미션별 통계</CardTitle>
+            <CardDescription>각 미션의 수행 현황</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {missionStats.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">
+                아직 설정된 미션이 없습니다.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {missionStats.map((mission) => (
+                  <div
+                    key={mission.mission_id}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="font-medium">{mission.mission_title}</span>
                     <div className="flex items-center space-x-4">
                       <span className="text-sm text-gray-500">
-                        {student.completed_missions}/
-                        {student.total_missions} 완료
+                        {mission.total_attempts}회 수행
                       </span>
                       <Badge
                         variant={
-                          student.completion_rate >= 80
+                          mission.completion_rate >= 70
                             ? "default"
                             : "secondary"
-                        }>
-                        {student.completion_rate}%
+                        }
+                      >
+                        {mission.completion_rate}%
                       </Badge>
                     </div>
                   </div>
                 ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Mission Stats */}
-      <Card>
-        <CardHeader>
-          <CardTitle>미션별 통계</CardTitle>
-          <CardDescription>
-            각 미션의 수행 현황
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {missionStats.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">
-              아직 설정된 미션이 없습니다.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {missionStats.map((mission) => (
-                <div
-                  key={mission.mission_id}
-                  className="flex items-center justify-between">
-                  <span className="font-medium">
-                    {mission.mission_title}
-                  </span>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-500">
-                      {mission.total_attempts}회 수행
-                    </span>
-                    <Badge
-                      variant={
-                        mission.completion_rate >= 70
-                          ? "default"
-                          : "secondary"
-                      }>
-                      {mission.completion_rate}%
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      {/* 미션이 없을 때 표시되는 다이얼로그 */}
+      <Dialog open={showNoMissionDialog} onOpenChange={setShowNoMissionDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-500" />
+              오늘의 미션 설정이 필요합니다
+            </DialogTitle>
+            <DialogDescription className="pt-3 space-y-2">
+              <p>환영합니다, 선생님!</p>
+              <p>
+                학생들이 수행할 '오늘의 미션'이 아직 설정되지 않았습니다. 미션을
+                설정하면 학생들이 매일 체크할 수 있는 과제가 생성됩니다.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowNoMissionDialog(false)}
+            >
+              나중에 하기
+            </Button>
+            <Button
+              onClick={() => {
+                setShowNoMissionDialog(false);
+                navigate("/teacher/mission-settings");
+              }}
+            >
+              미션 설정하러 가기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

@@ -83,15 +83,14 @@ export interface UserProfile {
   email?: string;
   name: string;
   role: "teacher" | "student";
-  school_id?: string;
-  teacher_id?: string;
+  school_id?: string; // 학교 ID 추가
+  teacher_id?: string; // 교사 ID 추가 (학생인 경우)
+  weekly_reward?: string; // 주간 보상 설정
+  show_weekly_reward?: boolean; // 주간 보상 표시 여부
+  pin_code?: string; // PIN 코드 추가 (text 타입으로 변경)
   auth_provider?: "kakao" | "qr";
   auth_uid?: string;
   qr_token?: string;
-  pin_code?: number; // PIN 코드 추가
-  theme?: string; // 테마 설정 추가
-  weekly_reward?: string; // 주간 보상 추가
-  show_weekly_reward?: boolean; // 주간 보상 표시 여부 추가
   created_at: string;
   updated_at: string;
   school?: School;

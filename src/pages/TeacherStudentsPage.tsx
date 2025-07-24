@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabaseClient";
-import {
-  UserProfile,
-  StudentCreationResult,
-} from "../types/index";
+import { UserProfile, StudentCreationResult } from "../types/index";
 import CreateStudentsModal from "../components/CreateStudentsModal";
 import StudentQRCodesPDF from "../components/StudentQRCodesPDF";
 import { Button } from "../components/ui/button";
@@ -18,23 +15,35 @@ import {
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import {
-  UserPlus,
-  Search,
-  Download,
-  QrCode,
-} from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { UserPlus, Search, Download, QrCode, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import QRCode from "qrcode";
+import ReactDOM from "react-dom/client";
 
 const TeacherStudentsPage: React.FC = () => {
   const { userProfile } = useAuth();
-  const [students, setStudents] = useState<UserProfile[]>(
-    []
-  );
+  const [students, setStudents] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showCreateModal, setShowCreateModal] =
-    useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [schoolName, setSchoolName] = useState<string>("");
+  const [selectedStudent, setSelectedStudent] = useState<UserProfile | null>(
+    null
+  );
+  const [showQRDialog, setShowQRDialog] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState<UserProfile | null>(
+    null
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (userProfile?.id) {
@@ -85,19 +94,112 @@ const TeacherStudentsPage: React.FC = () => {
     }
   };
 
-  const handleStudentCreated = (
-    createdStudents: StudentCreationResult[]
-  ) => {
+  const handleStudentCreated = (createdStudents: StudentCreationResult[]) => {
     fetchStudents();
-    toast.success(
-      `${createdStudents.length}명의 학생 계정이 생성되었습니다.`
-    );
+    toast.success(`${createdStudents.length}명의 학생 계정이 생성되었습니다.`);
+  };
+
+  // QR 코드 표시
+  const handleShowQR = async (student: UserProfile) => {
+    if (!student.qr_token) {
+      toast.error("QR 토큰이 없습니다.");
+      return;
+    }
+
+    try {
+      const qrData = JSON.stringify({
+        token: student.qr_token,
+        student_name: student.name,
+        school_id: userProfile?.school_id,
+      });
+
+      const url = await QRCode.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      });
+
+      setQrCodeUrl(url);
+      setSelectedStudent(student);
+      setShowQRDialog(true);
+    } catch (error) {
+      console.error("QR 코드 생성 오류:", error);
+      toast.error("QR 코드 생성에 실패했습니다.");
+    }
+  };
+
+  // 단일 학생 PDF 다운로드
+  const handleDownloadSinglePDF = (student: UserProfile) => {
+    if (!student.qr_token) {
+      toast.error("QR 토큰이 없습니다.");
+      return;
+    }
+
+    // 임시로 선택된 학생만 포함하는 배열 생성
+    const singleStudentArray = students.filter((s) => s.id === student.id);
+
+    // 새 창에서 PDF 컴포넌트 렌더링
+    const newWindow = window.open("", "_blank");
+    if (newWindow) {
+      newWindow.document.write(`
+        <html>
+          <head>
+            <title>${student.name} - QR 코드</title>
+          </head>
+          <body>
+            <div id="pdf-root"></div>
+          </body>
+        </html>
+      `);
+
+      const container = newWindow.document.getElementById("pdf-root");
+      if (container) {
+        const root = ReactDOM.createRoot(container);
+        root.render(
+          <StudentQRCodesPDF
+            students={singleStudentArray.map((s) => ({
+              student_id: s.id,
+              student_name: s.name,
+              qr_token: s.qr_token || "",
+            }))}
+            schoolName={schoolName}
+          />
+        );
+      }
+    }
+  };
+
+  // 학생 삭제
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      // 학생 관련 모든 데이터 삭제 (CASCADE로 자동 삭제되지만 명시적으로 처리)
+      const { error } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", studentToDelete.id);
+
+      if (error) throw error;
+
+      toast.success(`${studentToDelete.name} 학생의 계정이 삭제되었습니다.`);
+      fetchStudents();
+      setShowDeleteDialog(false);
+      setStudentToDelete(null);
+    } catch (error) {
+      console.error("학생 삭제 오류:", error);
+      toast.error("학생 삭제에 실패했습니다.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const filteredStudents = students.filter((student) =>
-    student.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+    student.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -105,9 +207,7 @@ const TeacherStudentsPage: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">
-            학생 목록 불러오는 중...
-          </p>
+          <p className="mt-4 text-gray-600">학생 목록 불러오는 중...</p>
         </div>
       </div>
     );
@@ -118,9 +218,7 @@ const TeacherStudentsPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">학생 관리</h1>
-          <p className="text-gray-600 mt-1">
-            학생 계정을 생성하고 관리합니다.
-          </p>
+          <p className="text-gray-600 mt-1">학생 계정을 생성하고 관리합니다.</p>
         </div>
         <div className="flex gap-2">
           {students.length > 0 && schoolName && (
@@ -167,9 +265,9 @@ const TeacherStudentsPage: React.FC = () => {
               <Button
                 variant="outline"
                 className="mt-4"
-                onClick={() => setShowCreateModal(true)}>
-                <UserPlus className="mr-2 h-4 w-4" />첫 학생
-                추가하기
+                onClick={() => setShowCreateModal(true)}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />첫 학생 추가하기
               </Button>
             )}
           </CardContent>
@@ -179,19 +277,21 @@ const TeacherStudentsPage: React.FC = () => {
           {filteredStudents.map((student) => (
             <Card
               key={student.id}
-              className="hover:shadow-lg transition-shadow">
+              className="hover:shadow-lg transition-shadow"
+            >
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg">
-                      {student.name}
-                    </CardTitle>
+                    <CardTitle className="text-lg">{student.name}</CardTitle>
                     <CardDescription className="text-sm mt-1">
-                      학생 ID: {student.id.substring(0, 8)}
-                      ...
+                      학생 ID: {student.id}
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-gray-200"
+                    onClick={() => handleShowQR(student)}
+                  >
                     <QrCode className="h-3 w-3 mr-1" />
                     QR
                   </Badge>
@@ -200,14 +300,30 @@ const TeacherStudentsPage: React.FC = () => {
               <CardContent>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500">
-                    가입일:{" "}
-                    {new Date(
-                      student.created_at
-                    ).toLocaleDateString()}
+                    가입일: {new Date(student.created_at).toLocaleDateString()}
                   </span>
-                  <Button size="sm" variant="ghost">
-                    <Download className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDownloadSinglePDF(student)}
+                      title="PDF 다운로드"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        setStudentToDelete(student);
+                        setShowDeleteDialog(true);
+                      }}
+                      title="학생 삭제"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -230,6 +346,78 @@ const TeacherStudentsPage: React.FC = () => {
           학교 정보가 없습니다. 먼저 학교를 설정해주세요.
         </div>
       )}
+
+      {/* QR 코드 표시 다이얼로그 */}
+      <Dialog open={showQRDialog} onOpenChange={setShowQRDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{selectedStudent?.name} 학생 QR 코드</DialogTitle>
+            <DialogDescription>
+              이 QR 코드를 스캔하여 학생이 로그인할 수 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-6">
+            {qrCodeUrl && (
+              <img src={qrCodeUrl} alt="QR Code" className="max-w-full" />
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedStudent) {
+                  handleDownloadSinglePDF(selectedStudent);
+                }
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              PDF 다운로드
+            </Button>
+            <Button onClick={() => setShowQRDialog(false)}>닫기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 학생 삭제 확인 다이얼로그 */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">학생 계정 삭제</DialogTitle>
+            <DialogDescription className="space-y-2">
+              <p className="font-semibold text-black">
+                정말로 {studentToDelete?.name} 학생의 계정을 삭제하시겠습니까?
+              </p>
+              <p>이 작업은 되돌릴 수 없으며, 다음 데이터가 모두 삭제됩니다:</p>
+              <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                <li>학생의 모든 미션 완료 기록</li>
+                <li>획득한 배지 기록</li>
+                <li>일일 및 월간 스냅샷 데이터</li>
+                <li>QR 코드 및 로그인 정보</li>
+              </ul>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setStudentToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteStudent}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "삭제 중..." : "삭제"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
