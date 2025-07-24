@@ -430,19 +430,21 @@ const TeacherStudentsPage: React.FC = () => {
 
       {/* QR 코드 표시 다이얼로그 */}
       <Dialog open={showQRDialog} onOpenChange={setShowQRDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
-            <DialogTitle>{selectedStudent?.name} 학생 QR 코드</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-gray-900">
+              {selectedStudent?.name} 학생 QR 코드
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
               이 QR 코드를 스캔하여 학생이 로그인할 수 있습니다.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-center p-6">
+          <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
             {qrCodeUrl && (
               <img src={qrCodeUrl} alt="QR Code" className="max-w-full" />
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="bg-white">
             <Button
               variant="outline"
               onClick={() => {
