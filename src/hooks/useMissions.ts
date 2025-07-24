@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { Mission } from "../types";
+import { useOnPageVisible } from "./usePageVisibility";
 
 export const useMissions = () => {
   const { userProfile, isTeacher } = useAuth();
@@ -12,9 +13,7 @@ export const useMissions = () => {
   const fetchMissions = useCallback(async () => {
     // 프로필이 없으면 미션을 조회하지 않음
     if (!userProfile) {
-      console.log(
-        "[useMissions] No userProfile, skipping fetch"
-      );
+      console.log("[useMissions] No userProfile, skipping fetch");
       setMissions([]);
       setLoading(false);
       return;
@@ -40,10 +39,7 @@ export const useMissions = () => {
       return;
     }
 
-    console.log(
-      "[useMissions] Fetching missions for school:",
-      schoolId
-    );
+    console.log("[useMissions] Fetching missions for school:", schoolId);
     setLoading(true);
     setError(null);
     try {
@@ -61,18 +57,13 @@ export const useMissions = () => {
       if (fetchError) throw fetchError;
 
       // 데이터베이스 형태를 UI 형태로 변환
-      const transformedData = (data || []).map(
-        (mission) => ({
-          ...mission,
-          content: mission.title, // title을 content로 매핑
-          order: mission.order_index, // order_index를 order로 매핑
-        })
-      );
+      const transformedData = (data || []).map((mission) => ({
+        ...mission,
+        content: mission.title, // title을 content로 매핑
+        order: mission.order_index, // order_index를 order로 매핑
+      }));
 
-      console.log(
-        "[fetchMissions] Transformed data:",
-        transformedData
-      );
+      console.log("[fetchMissions] Transformed data:", transformedData);
 
       setMissions(transformedData);
     } catch (err: unknown) {
@@ -84,6 +75,12 @@ export const useMissions = () => {
   }, [userProfile, isTeacher]);
 
   useEffect(() => {
+    fetchMissions();
+  }, [fetchMissions]);
+
+  // 페이지가 다시 보일 때 미션 새로고침
+  useOnPageVisible(() => {
+    console.log("[useMissions] Page visible, refreshing missions");
     fetchMissions();
   }, [fetchMissions]);
 
@@ -100,10 +97,7 @@ export const useMissions = () => {
         title: missionData.content,
         order_index: missionData.order,
       };
-      console.log(
-        "[addMission] DB insert data:",
-        insertData
-      );
+      console.log("[addMission] DB insert data:", insertData);
 
       const { data, error: insertError } = await supabase
         .from("missions")
@@ -125,15 +119,10 @@ export const useMissions = () => {
           order: data.order_index, // order_index를 order로 매핑
         };
 
-        console.log(
-          "[addMission] Transformed mission:",
-          transformedMission
-        );
+        console.log("[addMission] Transformed mission:", transformedMission);
 
         setMissions((prev) =>
-          [...prev, transformedMission].sort(
-            (a, b) => a.order - b.order
-          )
+          [...prev, transformedMission].sort((a, b) => a.order - b.order)
         );
         return transformedMission;
       }
@@ -165,29 +154,17 @@ export const useMissions = () => {
       };
 
       const dbUpdates: DbUpdate = {};
-      if (
-        "content" in updates &&
-        updates.content !== undefined
-      ) {
+      if ("content" in updates && updates.content !== undefined) {
         dbUpdates.title = updates.content;
       }
-      if (
-        "order" in updates &&
-        updates.order !== undefined
-      ) {
+      if ("order" in updates && updates.order !== undefined) {
         dbUpdates.order_index = updates.order;
       }
       // 다른 필드들은 그대로 복사
-      if (
-        "description" in updates &&
-        updates.description !== undefined
-      ) {
+      if ("description" in updates && updates.description !== undefined) {
         dbUpdates.description = updates.description;
       }
-      if (
-        "is_active" in updates &&
-        updates.is_active !== undefined
-      ) {
+      if ("is_active" in updates && updates.is_active !== undefined) {
         dbUpdates.is_active = updates.is_active;
       }
 
@@ -200,9 +177,7 @@ export const useMissions = () => {
       if (updateError) throw updateError;
       setMissions((prev) =>
         prev
-          .map((m) =>
-            m.id === id ? { ...m, ...updates } : m
-          )
+          .map((m) => (m.id === id ? { ...m, ...updates } : m))
           .sort((a, b) => a.order - b.order)
       );
     } catch (err: unknown) {
@@ -221,9 +196,7 @@ export const useMissions = () => {
         .eq("school_id", userProfile.school_id);
 
       if (deleteError) throw deleteError;
-      setMissions((prev) =>
-        prev.filter((m) => m.id !== id)
-      );
+      setMissions((prev) => prev.filter((m) => m.id !== id));
     } catch (err: unknown) {
       console.error("Error deleting mission:", err);
       setError("미션 삭제 중 오류가 발생했습니다.");

@@ -5,6 +5,7 @@ import { useNotification } from "../contexts/NotificationContext";
 import { MissionLog } from "../types";
 import toast from "react-hot-toast";
 import { DateTime } from "luxon";
+import { useOnPageVisible } from "./usePageVisibility";
 
 // 오디오 재생 함수
 const playSound = (soundFile: string) => {
@@ -224,6 +225,12 @@ export const useMissionLogs = (formattedDate: string) => {
 
   // 컴포넌트 마운트 또는 사용자/날짜 변경 시 초기 데이터 로드
   useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  // 페이지가 다시 보일 때 로그 새로고침
+  useOnPageVisible(() => {
+    console.log("[useMissionLogs] Page visible, refreshing logs");
     fetchInitialData();
   }, [fetchInitialData]);
 

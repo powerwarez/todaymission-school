@@ -1,92 +1,44 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-let supabase: SupabaseClient;
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Supabase URL과 Anon Key가 필요합니다.");
+}
 
-try {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn("Supabase URL or Anon Key is missing. Using a mock client.");
-    // 가짜 클라이언트 생성
-    supabase = {
-      auth: {
-        getSession: () =>
-          Promise.resolve({
-            data: { session: null },
-            error: null,
-          }),
-        onAuthStateChange: () => ({
-          data: { subscription: { unsubscribe: () => {} } },
-        }),
-        signOut: () => Promise.resolve({ error: null }),
-        signInWithOAuth: () =>
-          Promise.resolve({
-            data: { provider: "kakao", url: null },
-            error: null,
-          }),
-      },
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            single: () =>
-              Promise.resolve({
-                data: null,
-                error: { message: "Mock client" },
-              }),
-          }),
-        }),
-        update: () => ({
-          eq: () => Promise.resolve({ error: null }),
-        }),
-        insert: () => Promise.resolve({ data: null, error: null }),
-      }),
-    } as unknown as SupabaseClient;
-  } else {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
-    console.log("Supabase client initialized successfully");
-  }
-} catch (error) {
-  console.error("Error initializing Supabase client:", error);
-  // 가짜 클라이언트 생성
-  supabase = {
-    auth: {
-      getSession: () =>
-        Promise.resolve({
-          data: { session: null },
-          error: null,
-        }),
-      onAuthStateChange: () => ({
-        data: { subscription: { unsubscribe: () => {} } },
-      }),
-      signOut: () => Promise.resolve({ error: null }),
-      signInWithOAuth: () =>
-        Promise.resolve({
-          data: { provider: "kakao", url: null },
-          error: null,
-        }),
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
     },
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: () =>
-            Promise.resolve({
-              data: null,
-              error: { message: "Mock client" },
-            }),
-        }),
-      }),
-      update: () => ({
-        eq: () => Promise.resolve({ error: null }),
-      }),
-      insert: () => Promise.resolve({ data: null, error: null }),
-    }),
-  } as unknown as SupabaseClient;
+  },
+});
+
+// 페이지 가시성 변화 감지 및 연결 복구
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      console.log("Page visible: Checking Supabase connection");
+
+      // 세션 갱신 시도
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          console.error("Error refreshing session:", error);
+        } else if (session) {
+          console.log("Session refreshed successfully");
+        }
+      });
+
+      // Realtime 연결 재시작 (필요한 경우)
+      // 현재는 Supabase가 자동으로 처리하므로 추가 작업 불필요
+    }
+  });
 }
 
-export { supabase };
-
-// Supabase URL을 가져오는 헬퍼 함수
-export function getSupabaseUrl(): string {
-  return supabaseUrl || "";
-}
+console.log("Supabase 클라이언트가 초기화되었습니다.");

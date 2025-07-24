@@ -8,6 +8,7 @@ import React, {
 import { Session, User, AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 import { UserProfile } from "../types/index";
+import { useOnPageVisible } from "../hooks/usePageVisibility";
 
 interface AuthContextType {
   session: Session | null;
@@ -247,6 +248,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
   }, []);
+
+  // 페이지가 다시 보일 때 세션과 프로필 새로고침
+  useOnPageVisible(() => {
+    const refreshAuthState = async () => {
+      try {
+        // 현재 세션 확인
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+
+        if (currentSession) {
+          console.log("Page visible: Refreshing auth state");
+          setSession(currentSession);
+          setUser(currentSession.user);
+
+          // 프로필 새로고침
+          const profile = await fetchUserProfile(currentSession.user);
+          if (profile) {
+            setUserProfile(profile);
+          }
+        } else if (
+          userProfile &&
+          userProfile.role === "student" &&
+          userProfile.qr_token
+        ) {
+          // QR 로그인 학생의 경우 프로필만 새로고침
+          console.log("Page visible: Refreshing student profile");
+          const { data: refreshedProfile } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", userProfile.id)
+            .single();
+
+          if (refreshedProfile) {
+            setUserProfile(refreshedProfile as UserProfile);
+          }
+        }
+      } catch (error) {
+        console.error("Error refreshing auth state on page visible:", error);
+      }
+    };
+
+    refreshAuthState();
+  }, [userProfile?.id]);
 
   const logout = async () => {
     try {
