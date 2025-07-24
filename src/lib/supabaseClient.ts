@@ -42,3 +42,8 @@ if (typeof document !== "undefined") {
 }
 
 console.log("Supabase 클라이언트가 초기화되었습니다.");
+
+// Supabase URL을 가져오는 헬퍼 함수
+export function getSupabaseUrl(): string {
+  return supabaseUrl || "";
+}
