@@ -16,11 +16,13 @@ import {
   LuCheck,
   LuEye,
   LuEyeOff,
+  LuSparkles,
 } from "react-icons/lu";
 import WeeklyBadgeSetting from "../components/WeeklyBadgeSetting";
 import AccountSettings from "../components/AccountSettings";
 import PinAuthModal from "../components/PinAuthModal";
 import ThemeManager from "../components/ThemeManager";
+import AIMissionRecommendModal from "../components/AIMissionRecommendModal";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 
@@ -39,6 +41,9 @@ const MissionSettingsPage: React.FC = () => {
   const [weeklyReward, setWeeklyReward] = useState("");
   const [showWeeklyReward, setShowWeeklyReward] = useState(true);
   const [savingWeeklyReward, setSavingWeeklyReward] = useState(false);
+
+  // AI 추천 모달 상태
+  const [showAIRecommendModal, setShowAIRecommendModal] = useState(false);
 
   // 페이지 로드 시 PIN 인증 상태 확인
   useEffect(() => {
@@ -169,32 +174,6 @@ const MissionSettingsPage: React.FC = () => {
 
       {(!showPinAuth || pinVerified) && (
         <div className="max-w-4xl mx-auto p-4">
-          {/* 테마 설정 섹션 */}
-          <div className="mb-8">
-            <h1
-              className="text-2xl font-bold mb-6 flex items-center"
-              style={{
-                color: "var(--color-text-primary)",
-              }}
-            >
-              <LuPalette className="mr-2" /> 테마 설정
-            </h1>
-            <ThemeManager />
-          </div>
-
-          {/* 계정 설정 섹션 */}
-          <div className="mb-8">
-            <h1
-              className="text-2xl font-bold mb-6 flex items-center"
-              style={{
-                color: "var(--color-text-primary)",
-              }}
-            >
-              <LuUser className="mr-2" /> 계정 설정
-            </h1>
-            <AccountSettings />
-          </div>
-
           {/* 일일 미션 설정 섹션 */}
           <h1
             className="text-2xl font-bold mb-8 flex items-center"
@@ -293,9 +272,54 @@ const MissionSettingsPage: React.FC = () => {
                     <LuPlus className="mr-1" />
                     추가
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAIRecommendModal(true)}
+                    className="text-white p-2 rounded-lg flex items-center"
+                    style={{
+                      backgroundColor: "var(--color-secondary-medium)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "var(--color-secondary-dark)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "var(--color-secondary-medium)";
+                    }}
+                  >
+                    <LuSparkles className="mr-1" />
+                    AI 추천
+                  </button>
                 </form>
               </>
             )}
+          </div>
+
+          {/* 테마 설정 섹션 */}
+          <div className="mb-8">
+            <h1
+              className="text-2xl font-bold mb-6 flex items-center"
+              style={{
+                color: "var(--color-text-primary)",
+              }}
+            >
+              <LuPalette className="mr-2" /> 테마 설정
+            </h1>
+            <ThemeManager />
+          </div>
+
+          {/* 계정 설정 섹션 */}
+          <div className="mb-8">
+            <h1
+              className="text-2xl font-bold mb-6 flex items-center"
+              style={{
+                color: "var(--color-text-primary)",
+              }}
+            >
+              <LuUser className="mr-2" /> 계정 설정
+            </h1>
+            <AccountSettings />
           </div>
 
           {/* 주간 보상 설정 섹션 */}
@@ -380,6 +404,19 @@ const MissionSettingsPage: React.FC = () => {
           {userProfile && <WeeklyBadgeSetting userId={userProfile.id} />}
         </div>
       )}
+
+      {/* AI 추천 모달 */}
+      <AIMissionRecommendModal
+        isOpen={showAIRecommendModal}
+        onClose={() => setShowAIRecommendModal(false)}
+        existingMissions={missions.map((m) => m.content)}
+        onAddMission={async (content: string) => {
+          await addMission({
+            content,
+            order: missions.length,
+          });
+        }}
+      />
     </>
   );
 };
