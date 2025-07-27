@@ -144,6 +144,18 @@ export default {
         cute: ["Quicksand", "Nunito", "sans-serif"], // 예시: Quicksand, Nunito
         sans: ["Pretendard", "system-ui", "sans-serif"], // 기본 글꼴로 Pretendard 설정 (설치 필요)
       },
+      animation: {
+        rainbow: "rainbow var(--speed, 2s) infinite linear",
+      },
+      keyframes: {
+        rainbow: {
+          "0%": { backgroundPosition: "0%" },
+          "100%": { backgroundPosition: "200%" },
+        },
+      },
+      backgroundSize: {
+        "200%": "200%",
+      },
     },
   },
   plugins: [],
