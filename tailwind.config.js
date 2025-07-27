@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: false, // 다크모드 비활성화
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     borderRadius: {

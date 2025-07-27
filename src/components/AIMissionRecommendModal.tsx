@@ -89,7 +89,7 @@ const AIMissionRecommendModal: React.FC<AIMissionRecommendModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col bg-white text-gray-900">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LuSparkles className="text-yellow-500" />
