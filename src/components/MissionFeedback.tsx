@@ -202,7 +202,7 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-purple-700">
           <LuSparkles className="h-5 w-5" />
-          오늘의 미션 도우미
+          오늘의 미션 AI 도우미
         </CardTitle>
       </CardHeader>
       <CardContent>
