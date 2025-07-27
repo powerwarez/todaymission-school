@@ -16,9 +16,9 @@ const rainbowButtonVariants = cva(
     variants: {
       variant: {
         default:
-          "text-white p-2 before:absolute before:bottom-[-20%] before:left-1/2 before:z-0 before:h-1/5 before:w-3/5 before:-translate-x-1/2 before:animate-rainbow before:bg-[linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))] before:bg-[length:200%] before:[filter:blur(0.75rem)]",
+          "text-white p-2 overflow-visible before:absolute before:bottom-[-8px] before:left-0 before:right-0 before:h-[6px] before:w-full before:animate-rainbow before:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3)] before:bg-[length:200%] before:rounded-full before:[filter:blur(2px)] after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-[4px] after:w-full after:animate-rainbow after:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3)] after:bg-[length:200%] after:rounded-full",
         outline:
-          "text-white p-2 before:absolute before:bottom-[-20%] before:left-1/2 before:z-0 before:h-1/5 before:w-3/5 before:-translate-x-1/2 before:animate-rainbow before:bg-[linear-gradient(90deg,var(--color-1),var(--color-5),var(--color-3),var(--color-4),var(--color-2))] before:bg-[length:200%] before:[filter:blur(0.75rem)]",
+          "text-white p-2 overflow-visible before:absolute before:bottom-[-8px] before:left-0 before:right-0 before:h-[6px] before:w-full before:animate-rainbow before:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3)] before:bg-[length:200%] before:rounded-full before:[filter:blur(2px)] after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-[4px] after:w-full after:animate-rainbow after:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3)] after:bg-[length:200%] after:rounded-full",
       },
       size: {
         default: "p-2",
