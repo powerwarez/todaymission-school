@@ -25,6 +25,7 @@ import ThemeManager from "../components/ThemeManager";
 import AIMissionRecommendModal from "../components/AIMissionRecommendModal";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { RainbowButton } from "../components/magicui/rainbow-button";
 
 const MissionSettingsPage: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -272,7 +273,7 @@ const MissionSettingsPage: React.FC = () => {
                     <LuPlus className="mr-1" />
                     추가
                   </button>
-                  <button
+                  <RainbowButton
                     type="button"
                     onClick={() => setShowAIRecommendModal(true)}
                     className="text-white p-2 rounded-lg flex items-center"
@@ -290,7 +291,7 @@ const MissionSettingsPage: React.FC = () => {
                   >
                     <LuSparkles className="mr-1" />
                     AI 추천
-                  </button>
+                  </RainbowButton>
                 </form>
               </>
             )}
