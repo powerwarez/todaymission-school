@@ -187,10 +187,14 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
   // 주말이거나 피드백이 필요없는 경우
   const { should } = shouldGenerateFeedback();
 
-  // 피드백이 전혀 없는 경우에만 null 반환
-  if (feedbacks.length === 0 && !should) {
-    return null;
-  }
+  // 디버깅: 항상 컴포넌트를 표시하도록 임시 수정
+  console.log("MissionFeedback Debug:", {
+    feedbacksLength: feedbacks.length,
+    should,
+    currentFeedback,
+    loading,
+    error,
+  });
 
   return (
     <Card className="mt-6 border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
