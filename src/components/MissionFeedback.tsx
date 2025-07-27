@@ -1,0 +1,256 @@
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import {
+  GeneratedFeedback,
+  generateMissionFeedback,
+} from "../utils/geminiFeedbackGenerator";
+import { useFeedback } from "../hooks/useFeedback";
+import { Mission } from "../types";
+import { supabase } from "../lib/supabaseClient";
+import { DateTime } from "luxon";
+import { LuSparkles, LuRefreshCw, LuCalendarDays } from "react-icons/lu";
+
+interface MissionFeedbackProps {
+  studentId: string;
+  studentName: string;
+  missions: Mission[];
+  timeZone: string;
+}
+
+const MissionFeedback: React.FC<MissionFeedbackProps> = ({
+  studentId,
+  studentName,
+  missions,
+  timeZone,
+}) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [currentFeedback, setCurrentFeedback] =
+    useState<GeneratedFeedback | null>(null);
+
+  const {
+    feedbacks,
+    loading,
+    error,
+    getTodaysFeedback,
+    createFeedback,
+    shouldGenerateFeedback,
+  } = useFeedback(studentId, timeZone);
+
+  // 피드백 생성 함수
+  const handleGenerateFeedback = async () => {
+    const { should, targetDate } = shouldGenerateFeedback();
+
+    if (!should || !targetDate) {
+      return;
+    }
+
+    setIsGenerating(true);
+
+    try {
+      // 이전 평일의 미션 로그 가져오기
+      const { data: missionLogs, error: logsError } = await supabase
+        .from("mission_logs")
+        .select(
+          `
+          mission_id,
+          completed_at,
+          missions!inner(
+            id,
+            teacher_id,
+            school_id,
+            title,
+            content,
+            description,
+            is_active,
+            order_index,
+            created_at,
+            updated_at
+          )
+        `
+        )
+        .eq("student_id", studentId)
+        .gte("completed_at", `${targetDate}T00:00:00`)
+        .lt("completed_at", `${targetDate}T23:59:59`);
+
+      if (logsError) throw logsError;
+
+      // 미션 로그 형식 변환
+      const formattedLogs =
+        missionLogs?.map((log: any) => ({
+          mission_id: log.mission_id,
+          completed_at: log.completed_at,
+          mission: log.missions as unknown as Mission,
+        })) || [];
+
+      // AI 피드백 생성
+      const feedback = await generateMissionFeedback(
+        studentName,
+        formattedLogs,
+        missions,
+        targetDate
+      );
+
+      if (feedback) {
+        // 피드백 저장
+        await createFeedback(feedback);
+        setCurrentFeedback(feedback);
+      }
+    } catch (err) {
+      console.error("피드백 생성 중 오류:", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 자동으로 피드백 생성 확인
+  useEffect(() => {
+    const checkAndGenerateFeedback = async () => {
+      const todayFeedback = getTodaysFeedback();
+
+      if (todayFeedback) {
+        setCurrentFeedback(todayFeedback.contents);
+      } else {
+        const { should } = shouldGenerateFeedback();
+        if (should) {
+          await handleGenerateFeedback();
+        }
+      }
+    };
+
+    if (!loading && feedbacks) {
+      checkAndGenerateFeedback();
+    }
+  }, [loading, feedbacks]);
+
+  // 날짜 포맷팅
+  const formatDate = (dateString: string) => {
+    const date = DateTime.fromISO(dateString).setZone(timeZone);
+    return date.toFormat("M월 d일 (EEE)", { locale: "ko" });
+  };
+
+  if (loading) {
+    return (
+      <Card className="mt-6">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <LuRefreshCw className="animate-spin h-5 w-5 mr-2" />
+            <span>피드백을 불러오는 중...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="mt-6 border-red-200">
+        <CardContent className="p-6">
+          <p className="text-red-600">
+            피드백을 불러오는 중 오류가 발생했습니다.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // 주말이거나 피드백이 필요없는 경우
+  const { should } = shouldGenerateFeedback();
+
+  if (!should && !currentFeedback) {
+    return null;
+  }
+
+  return (
+    <Card className="mt-6 border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-purple-700">
+          <LuSparkles className="h-5 w-5" />
+          AI 선생님의 피드백
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isGenerating ? (
+          <div className="flex items-center justify-center py-8">
+            <LuRefreshCw className="animate-spin h-6 w-6 mr-3 text-purple-600" />
+            <span className="text-purple-700">
+              AI 선생님이 피드백을 작성하고 있어요...
+            </span>
+          </div>
+        ) : currentFeedback ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <LuCalendarDays className="h-4 w-4" />
+              <span>{formatDate(currentFeedback.date)} 미션 수행 결과</span>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-purple-700">달성률</span>
+                  <span className="text-2xl font-bold text-purple-600">
+                    {currentFeedback.completionRate}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500"
+                    style={{ width: `${currentFeedback.completionRate}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 text-gray-700">
+                <p className="leading-relaxed">{currentFeedback.feedback}</p>
+                <p className="leading-relaxed font-medium text-purple-700">
+                  {currentFeedback.encouragement}
+                </p>
+              </div>
+            </div>
+
+            {currentFeedback.completedMissions.length > 0 && (
+              <div className="bg-green-50 rounded-lg p-3">
+                <p className="text-sm font-semibold text-green-700 mb-1">
+                  ✅ 완료한 미션 ({currentFeedback.completedMissions.length}개)
+                </p>
+                <ul className="text-sm text-green-600 space-y-1">
+                  {currentFeedback.completedMissions.map((mission, index) => (
+                    <li key={index}>• {mission}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {currentFeedback.incompleteMissions.length > 0 && (
+              <div className="bg-orange-50 rounded-lg p-3">
+                <p className="text-sm font-semibold text-orange-700 mb-1">
+                  💪 다음에 도전해볼 미션 (
+                  {currentFeedback.incompleteMissions.length}개)
+                </p>
+                <ul className="text-sm text-orange-600 space-y-1">
+                  {currentFeedback.incompleteMissions.map((mission, index) => (
+                    <li key={index}>• {mission}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-600 mb-4">아직 피드백이 없어요</p>
+            <Button
+              onClick={handleGenerateFeedback}
+              disabled={isGenerating}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <LuSparkles className="h-4 w-4 mr-2" />
+              피드백 받기
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default MissionFeedback;

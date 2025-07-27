@@ -7,6 +7,7 @@ import { useWeeklyCompletionStatus } from "../hooks/useWeeklyCompletionStatus"; 
 import WeeklyStatusDisplay from "../components/WeeklyStatusDisplay"; // 주간 현황 컴포넌트 임포트
 import ConfettiEffect from "../components/ConfettiEffect";
 import LoadingWithRefresh from "../components/LoadingWithRefresh";
+import MissionFeedback from "../components/MissionFeedback"; // AI 피드백 컴포넌트 추가
 import { Mission } from "../types"; // Mission 타입만 가져오기
 import { toZonedTime, format } from "date-fns-tz"; // date-fns-tz import
 import { LuGift } from "react-icons/lu";
@@ -455,6 +456,16 @@ const TodayMissionPage: React.FC = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* AI 피드백 섹션 */}
+      {userProfile && missions && (
+        <MissionFeedback
+          studentId={userProfile.id}
+          studentName={childName || userProfile.name}
+          missions={missions}
+          timeZone={timeZone}
+        />
       )}
     </div>
   );
