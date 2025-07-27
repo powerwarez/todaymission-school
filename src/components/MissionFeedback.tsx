@@ -191,9 +191,10 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
   console.log("MissionFeedback Debug:", {
     feedbacksLength: feedbacks.length,
     should,
-    currentFeedback,
+    currentFeedback: currentFeedback ? "있음" : "없음",
     loading,
     error,
+    feedbacks: feedbacks,
   });
 
   return (
@@ -201,7 +202,7 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-purple-700">
           <LuSparkles className="h-5 w-5" />
-          AI 선생님의 피드백
+          오늘의 미션 도우미
         </CardTitle>
       </CardHeader>
       <CardContent>
