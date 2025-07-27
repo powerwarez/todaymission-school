@@ -22,15 +22,56 @@ export const useFeedback = (
   // 오늘 날짜의 피드백 가져오기
   const getTodaysFeedback = () => {
     const today = DateTime.now().setZone(timeZone).toFormat("yyyy-MM-dd");
-    return feedbacks.find((f) => f.contents.date === today);
+
+    for (const feedback of feedbacks) {
+      if (Array.isArray(feedback.contents)) {
+        const todayFeedback = feedback.contents.find(
+          (content: GeneratedFeedback) => content.date === today
+        );
+        if (todayFeedback) {
+          return { ...feedback, contents: todayFeedback };
+        }
+      } else if (feedback.contents.date === today) {
+        return feedback;
+      }
+    }
+    return null;
   };
 
   // 특정 날짜의 피드백 가져오기
   const getFeedbackByDate = (date: string) => {
-    return feedbacks.find((f) => f.contents.date === date);
+    for (const feedback of feedbacks) {
+      if (Array.isArray(feedback.contents)) {
+        const dateFeedback = feedback.contents.find(
+          (content: GeneratedFeedback) => content.date === date
+        );
+        if (dateFeedback) {
+          return { ...feedback, contents: dateFeedback };
+        }
+      } else if (feedback.contents.date === date) {
+        return feedback;
+      }
+    }
+    return null;
   };
 
-  // 피드백 생성
+  // 가장 최근 피드백 가져오기
+  const getLatestFeedback = () => {
+    if (feedbacks.length === 0) return null;
+
+    const feedback = feedbacks[0];
+    if (Array.isArray(feedback.contents)) {
+      // 날짜 기준으로 정렬하여 가장 최근 것 반환
+      const sortedContents = [...feedback.contents].sort(
+        (a: GeneratedFeedback, b: GeneratedFeedback) =>
+          b.date.localeCompare(a.date)
+      );
+      return { ...feedback, contents: sortedContents[0] };
+    }
+    return feedback;
+  };
+
+  // 피드백 생성 (기존 레코드에 누적)
   const createFeedback = async (feedbackData: GeneratedFeedback) => {
     if (!studentId) {
       setError("학생 ID가 없습니다.");
@@ -38,20 +79,63 @@ export const useFeedback = (
     }
 
     try {
-      const { data, error: insertError } = await supabase
+      // 먼저 해당 학생의 기존 피드백 레코드가 있는지 확인
+      const { data: existingFeedback, error: fetchError } = await supabase
         .from("feedback")
-        .insert({
-          student_id: studentId,
-          contents: feedbackData,
-        })
-        .select()
+        .select("*")
+        .eq("student_id", studentId)
         .single();
 
-      if (insertError) throw insertError;
+      if (fetchError && fetchError.code !== "PGRST116") {
+        // PGRST116은 no rows found 에러
+        throw fetchError;
+      }
+
+      let result;
+
+      if (existingFeedback) {
+        // 기존 레코드가 있으면 contents 배열에 추가
+        const updatedContents = Array.isArray(existingFeedback.contents)
+          ? [...existingFeedback.contents, feedbackData]
+          : [existingFeedback.contents, feedbackData]; // 기존 데이터가 배열이 아닌 경우 처리
+
+        const { data, error: updateError } = await supabase
+          .from("feedback")
+          .update({
+            contents: updatedContents,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingFeedback.id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        result = data;
+      } else {
+        // 새로운 레코드 생성 (contents를 배열로 시작)
+        const { data, error: insertError } = await supabase
+          .from("feedback")
+          .insert({
+            student_id: studentId,
+            contents: [feedbackData], // 배열로 저장
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        result = data;
+      }
 
       // 로컬 상태 업데이트
-      setFeedbacks((prev) => [...prev, data]);
-      return data;
+      if (existingFeedback) {
+        setFeedbacks((prev) =>
+          prev.map((f) => (f.id === result.id ? result : f))
+        );
+      } else {
+        setFeedbacks((prev) => [...prev, result]);
+      }
+
+      return result;
     } catch (err) {
       console.error("피드백 생성 오류:", err);
       setError(
@@ -151,6 +235,7 @@ export const useFeedback = (
     error,
     getTodaysFeedback,
     getFeedbackByDate,
+    getLatestFeedback,
     createFeedback,
     fetchFeedbacks,
     shouldGenerateFeedback,

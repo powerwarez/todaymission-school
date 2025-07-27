@@ -33,6 +33,7 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
     loading,
     error,
     getTodaysFeedback,
+    getLatestFeedback,
     createFeedback,
     shouldGenerateFeedback,
   } = useFeedback(studentId, timeZone);
@@ -55,7 +56,7 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
           `
           mission_id,
           completed_at,
-          missions!inner(
+          missions:mission_id(
             id,
             teacher_id,
             school_id,
@@ -80,7 +81,20 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
         missionLogs?.map((log: any) => ({
           mission_id: log.mission_id,
           completed_at: log.completed_at,
-          mission: log.missions as unknown as Mission,
+          mission: {
+            id: log.missions.id,
+            teacher_id: log.missions.teacher_id,
+            school_id: log.missions.school_id,
+            title: log.missions.title,
+            content: log.missions.content || log.missions.title,
+            description: log.missions.description,
+            is_active: log.missions.is_active,
+            order_index: log.missions.order_index,
+            order: log.missions.order_index,
+            created_at: log.missions.created_at,
+            updated_at: log.missions.updated_at,
+            user_id: log.missions.teacher_id,
+          } as Mission,
         })) || [];
 
       // AI 피드백 생성
@@ -106,14 +120,30 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
   // 컴포넌트 마운트 시 자동으로 피드백 생성 확인
   useEffect(() => {
     const checkAndGenerateFeedback = async () => {
+      console.log("Feedbacks loaded:", feedbacks);
       const todayFeedback = getTodaysFeedback();
 
       if (todayFeedback) {
+        console.log("Today's feedback found:", todayFeedback);
         setCurrentFeedback(todayFeedback.contents);
       } else {
-        const { should } = shouldGenerateFeedback();
-        if (should) {
-          await handleGenerateFeedback();
+        // 오늘 피드백이 없으면 가장 최근 피드백을 표시
+        const latestFeedback = getLatestFeedback();
+        if (latestFeedback) {
+          console.log("Showing most recent feedback:", latestFeedback);
+          setCurrentFeedback(latestFeedback.contents);
+        } else {
+          // 피드백이 전혀 없고 생성이 필요한 경우에만 생성
+          const { should, targetDate } = shouldGenerateFeedback();
+          console.log(
+            "Should generate feedback:",
+            should,
+            "Target date:",
+            targetDate
+          );
+          if (should) {
+            await handleGenerateFeedback();
+          }
         }
       }
     };
@@ -157,7 +187,8 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
   // 주말이거나 피드백이 필요없는 경우
   const { should } = shouldGenerateFeedback();
 
-  if (!should && !currentFeedback) {
+  // 피드백이 전혀 없는 경우에만 null 반환
+  if (feedbacks.length === 0 && !should) {
     return null;
   }
 
@@ -170,6 +201,14 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* 디버깅 정보 */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-4 p-2 bg-gray-100 text-xs">
+            <p>Feedbacks count: {feedbacks.length}</p>
+            <p>Current feedback: {currentFeedback ? "Yes" : "No"}</p>
+            <p>Should generate: {should ? "Yes" : "No"}</p>
+          </div>
+        )}
         {isGenerating ? (
           <div className="flex items-center justify-center py-8">
             <LuRefreshCw className="animate-spin h-6 w-6 mr-3 text-purple-600" />
@@ -238,14 +277,16 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
         ) : (
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">아직 피드백이 없어요</p>
-            <Button
-              onClick={handleGenerateFeedback}
-              disabled={isGenerating}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              <LuSparkles className="h-4 w-4 mr-2" />
-              피드백 받기
-            </Button>
+            {should && (
+              <Button
+                onClick={handleGenerateFeedback}
+                disabled={isGenerating}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <LuSparkles className="h-4 w-4 mr-2" />
+                피드백 받기
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
