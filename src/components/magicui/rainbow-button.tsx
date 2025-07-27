@@ -5,26 +5,26 @@ import React from "react";
 
 const rainbowButtonVariants = cva(
   cn(
-    "relative cursor-pointer group transition-all",
-    "inline-flex items-center justify-center",
-    "rounded-lg outline-none",
+    "relative cursor-pointer group transition-all animate-rainbow",
+    "inline-flex items-center justify-center gap-2 shrink-0",
+    "rounded-sm outline-none focus-visible:ring-[3px] aria-invalid:border-destructive",
     "text-sm font-medium whitespace-nowrap",
     "disabled:pointer-events-none disabled:opacity-50",
-    "[&_svg]:pointer-events-none [&_svg]:shrink-0"
+    "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0"
   ),
   {
     variants: {
       variant: {
         default:
-          "text-white p-2 overflow-visible before:absolute before:bottom-[-8px] before:left-0 before:right-0 before:h-[6px] before:w-full before:animate-rainbow before:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3)] before:bg-[length:200%] before:rounded-full before:[filter:blur(2px)] after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-[4px] after:w-full after:animate-rainbow after:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3)] after:bg-[length:200%] after:rounded-full",
+          "border-0 bg-[linear-gradient(#121213,#121213),linear-gradient(#121213_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff)] bg-[length:200%] text-primary-foreground [background-clip:padding-box,border-box,border-box] [background-origin:border-box] [border:calc(0.125rem)_solid_transparent] before:absolute before:bottom-[-20%] before:left-1/2 before:z-0 before:h-1/3 before:w-4/5 before:-translate-x-1/2 before:animate-rainbow before:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff)] before:bg-[length:200%] before:[filter:blur(1rem)] dark:bg-[linear-gradient(#fff,#fff),linear-gradient(#fff_50%,rgba(255,255,255,0.6)_80%,rgba(0,0,0,0)),linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff)]",
         outline:
-          "text-white p-2 overflow-visible before:absolute before:bottom-[-8px] before:left-0 before:right-0 before:h-[6px] before:w-full before:animate-rainbow before:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3)] before:bg-[length:200%] before:rounded-full before:[filter:blur(2px)] after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:h-[4px] after:w-full after:animate-rainbow after:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3)] after:bg-[length:200%] after:rounded-full",
+          "border border-input border-b-transparent bg-[linear-gradient(#ffffff,#ffffff),linear-gradient(#ffffff_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff)] bg-[length:200%] text-accent-foreground [background-clip:padding-box,border-box,border-box] [background-origin:border-box] before:absolute before:bottom-[-20%] before:left-1/2 before:z-0 before:h-1/3 before:w-4/5 before:-translate-x-1/2 before:animate-rainbow before:bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff)] before:bg-[length:200%] before:[filter:blur(1rem)] dark:bg-[linear-gradient(#0a0a0a,#0a0a0a),linear-gradient(#0a0a0a_50%,rgba(255,255,255,0.6)_80%,rgba(0,0,0,0)),linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff)]",
       },
       size: {
-        default: "p-2",
-        sm: "p-1.5 text-xs",
-        lg: "p-3",
-        icon: "p-2",
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-xl px-3 text-xs",
+        lg: "h-11 rounded-xl px-8",
+        icon: "size-9",
       },
     },
     defaultVariants: {
