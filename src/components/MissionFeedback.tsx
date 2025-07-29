@@ -63,13 +63,30 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
         endTime: `${targetDate}T23:59:59+09:00`,
       });
 
+      // KST를 UTC로 변환
+      const startTimeUTC = DateTime.fromISO(`${targetDate}T00:00:00`, {
+        zone: "Asia/Seoul",
+      })
+        .toUTC()
+        .toISO();
+      const endTimeUTC = DateTime.fromISO(`${targetDate}T23:59:59`, {
+        zone: "Asia/Seoul",
+      })
+        .toUTC()
+        .toISO();
+
+      console.log("UTC 시간 범위:", {
+        startTimeUTC,
+        endTimeUTC,
+      });
+
       // 1. 먼저 미션 로그만 가져오기
       const { data: missionLogs, error: logsError } = await supabase
         .from("mission_logs")
         .select("*")
         .eq("student_id", studentId)
-        .gte("completed_at", `${targetDate}T00:00:00+09:00`)
-        .lt("completed_at", `${targetDate}T23:59:59+09:00`);
+        .gte("completed_at", startTimeUTC)
+        .lte("completed_at", endTimeUTC);
 
       console.log("미션 로그 조회 결과:", {
         missionLogs,
@@ -81,6 +98,18 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
 
       if (!missionLogs || missionLogs.length === 0) {
         console.log("해당 날짜에 완료된 미션이 없음");
+        // 미션이 없어도 피드백은 생성 (0% 달성률로)
+        const feedback = await generateMissionFeedback(
+          studentName,
+          [],
+          missions,
+          targetDate
+        );
+
+        if (feedback) {
+          await createFeedback(feedback);
+          setCurrentFeedback(feedback);
+        }
         return;
       }
 
