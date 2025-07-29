@@ -78,24 +78,27 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
 
       // 미션 로그 형식 변환
       const formattedLogs =
-        missionLogs?.map((log: any) => ({
-          mission_id: log.mission_id,
-          completed_at: log.completed_at,
-          mission: {
-            id: log.missions.id,
-            teacher_id: log.missions.teacher_id,
-            school_id: log.missions.school_id,
-            title: log.missions.title,
-            content: log.missions.content || log.missions.title,
-            description: log.missions.description,
-            is_active: log.missions.is_active,
-            order_index: log.missions.order_index,
-            order: log.missions.order_index,
-            created_at: log.missions.created_at,
-            updated_at: log.missions.updated_at,
-            user_id: log.missions.teacher_id,
-          } as Mission,
-        })) || [];
+        missionLogs?.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (log: any) => ({
+            mission_id: log.mission_id,
+            completed_at: log.completed_at,
+            mission: {
+              id: log.missions.id,
+              teacher_id: log.missions.teacher_id,
+              school_id: log.missions.school_id,
+              title: log.missions.title,
+              content: log.missions.content || log.missions.title,
+              description: log.missions.description,
+              is_active: log.missions.is_active,
+              order_index: log.missions.order_index,
+              order: log.missions.order_index,
+              created_at: log.missions.created_at,
+              updated_at: log.missions.updated_at,
+              user_id: log.missions.teacher_id,
+            } as Mission,
+          })
+        ) || [];
 
       // AI 피드백 생성
       const feedback = await generateMissionFeedback(
@@ -120,25 +123,28 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
   // 컴포넌트 마운트 시 자동으로 피드백 생성 확인
   useEffect(() => {
     const checkAndGenerateFeedback = async () => {
+      console.log("=== MissionFeedback 체크 시작 ===");
       console.log("Feedbacks loaded:", feedbacks);
+      console.log("현재 시간대:", timeZone);
+
       const todayFeedback = getTodaysFeedback();
 
       if (todayFeedback) {
-        console.log("Today's feedback found:", todayFeedback);
+        console.log("이전 평일의 피드백 발견:", todayFeedback);
         setCurrentFeedback(todayFeedback.contents);
       } else {
         // 오늘 피드백이 없으면 가장 최근 피드백을 표시
         const latestFeedback = getLatestFeedback();
         if (latestFeedback) {
-          console.log("Showing most recent feedback:", latestFeedback);
+          console.log("가장 최근 피드백 표시:", latestFeedback);
           setCurrentFeedback(latestFeedback.contents);
         } else {
           // 피드백이 전혀 없고 생성이 필요한 경우에만 생성
           const { should, targetDate } = shouldGenerateFeedback();
           console.log(
-            "Should generate feedback:",
+            "피드백 생성 필요 여부:",
             should,
-            "Target date:",
+            "타겟 날짜:",
             targetDate
           );
           if (should) {
@@ -208,10 +214,53 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
       <CardContent>
         {/* 디버깅 정보 */}
         {process.env.NODE_ENV === "development" && (
-          <div className="mb-4 p-2 bg-gray-100 text-xs">
-            <p>Feedbacks count: {feedbacks.length}</p>
-            <p>Current feedback: {currentFeedback ? "Yes" : "No"}</p>
-            <p>Should generate: {should ? "Yes" : "No"}</p>
+          <div className="mb-4 p-3 bg-gray-100 text-xs rounded space-y-1">
+            <p className="font-semibold">🔍 디버깅 정보</p>
+            <p>피드백 개수: {feedbacks.length}</p>
+            <p>
+              현재 피드백:{" "}
+              {currentFeedback ? `있음 (${currentFeedback.date})` : "없음"}
+            </p>
+            <p>생성 필요: {should ? "예" : "아니오"}</p>
+            <p>
+              현재 시간:{" "}
+              {DateTime.now()
+                .setZone(timeZone)
+                .toFormat("yyyy-MM-dd HH:mm:ss (EEE)")}
+            </p>
+            <p>
+              타겟 날짜 (이전 평일):{" "}
+              {DateTime.now()
+                .setZone(timeZone)
+                .minus({ days: 1 })
+                .toFormat("yyyy-MM-dd (EEE)")}
+            </p>
+            {feedbacks.length > 0 && (
+              <div className="mt-2">
+                <p className="font-semibold">저장된 피드백 목록:</p>
+                {feedbacks.map((fb, idx) => (
+                  <div key={fb.id} className="ml-2 text-xs">
+                    <p>
+                      #{idx + 1}:{" "}
+                      {Array.isArray(fb.contents)
+                        ? `배열 (${fb.contents.length}개)`
+                        : `날짜: ${fb.contents.date}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-2">
+              <Button
+                onClick={handleGenerateFeedback}
+                disabled={isGenerating}
+                size="sm"
+                variant="outline"
+                className="text-xs"
+              >
+                수동으로 피드백 생성 (테스트)
+              </Button>
+            </div>
           </div>
         )}
         {isGenerating ? (

@@ -21,17 +21,21 @@ export const useFeedback = (
 
   // 오늘 날짜의 피드백 가져오기
   const getTodaysFeedback = () => {
-    const today = DateTime.now().setZone(timeZone).toFormat("yyyy-MM-dd");
+    const now = DateTime.now().setZone(timeZone);
+
+    // 주말이면 금요일의 피드백을 찾음
+    // 평일이면 이전 평일의 피드백을 찾음
+    const targetDate = getPreviousWeekday(now).toFormat("yyyy-MM-dd");
 
     for (const feedback of feedbacks) {
       if (Array.isArray(feedback.contents)) {
-        const todayFeedback = feedback.contents.find(
-          (content: GeneratedFeedback) => content.date === today
+        const targetFeedback = feedback.contents.find(
+          (content: GeneratedFeedback) => content.date === targetDate
         );
-        if (todayFeedback) {
-          return { ...feedback, contents: todayFeedback };
+        if (targetFeedback) {
+          return { ...feedback, contents: targetFeedback };
         }
-      } else if (feedback.contents.date === today) {
+      } else if (feedback.contents.date === targetDate) {
         return feedback;
       }
     }
@@ -205,14 +209,15 @@ export const useFeedback = (
   } => {
     const now = DateTime.now().setZone(timeZone);
 
+    console.log("shouldGenerateFeedback 체크:", {
+      현재시간: now.toFormat("yyyy-MM-dd HH:mm:ss"),
+      요일: now.weekdayLong,
+      주말여부: isWeekend(now),
+    });
+
     // 주말이면 피드백 생성하지 않음
     if (isWeekend(now)) {
-      return { should: false, targetDate: null };
-    }
-
-    // 오늘 피드백이 이미 있으면 생성하지 않음
-    const todayFeedback = getTodaysFeedback();
-    if (todayFeedback) {
+      console.log("주말이므로 피드백 생성하지 않음");
       return { should: false, targetDate: null };
     }
 
@@ -220,6 +225,17 @@ export const useFeedback = (
     const previousWeekday = getPreviousWeekday(now);
     const targetDate = previousWeekday.toFormat("yyyy-MM-dd");
 
+    console.log("타겟 날짜 (이전 평일):", targetDate);
+
+    // 해당 날짜의 피드백이 이미 있는지 확인
+    const existingFeedback = getFeedbackByDate(targetDate);
+
+    if (existingFeedback) {
+      console.log("이미 해당 날짜의 피드백이 존재함:", targetDate);
+      return { should: false, targetDate: null };
+    }
+
+    console.log("피드백 생성 필요:", targetDate);
     return { should: true, targetDate };
   };
 
