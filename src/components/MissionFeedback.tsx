@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import {
   GeneratedFeedback,
   generateMissionFeedback,
+  MissionLogWithDetails,
 } from "../utils/geminiFeedbackGenerator";
 import { useFeedback } from "../hooks/useFeedback";
 import { Mission } from "../types";
@@ -62,26 +63,10 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
         endTime: `${targetDate}T23:59:59+09:00`,
       });
 
+      // 1. 먼저 미션 로그만 가져오기
       const { data: missionLogs, error: logsError } = await supabase
         .from("mission_logs")
-        .select(
-          `
-          mission_id,
-          completed_at,
-          missions:mission_id(
-            id,
-            teacher_id,
-            school_id,
-            title,
-            content,
-            description,
-            is_active,
-            order_index,
-            created_at,
-            updated_at
-          )
-        `
-        )
+        .select("*")
         .eq("student_id", studentId)
         .gte("completed_at", `${targetDate}T00:00:00+09:00`)
         .lt("completed_at", `${targetDate}T23:59:59+09:00`);
@@ -94,29 +79,48 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
 
       if (logsError) throw logsError;
 
-      // 미션 로그 형식 변환
-      const formattedLogs =
-        missionLogs?.map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (log: any) => ({
+      if (!missionLogs || missionLogs.length === 0) {
+        console.log("해당 날짜에 완료된 미션이 없음");
+        return;
+      }
+
+      // 2. 미션 정보 가져오기
+      const missionIds = missionLogs.map((log) => log.mission_id);
+      const { data: missionsData, error: missionsError } = await supabase
+        .from("missions")
+        .select("*")
+        .in("id", missionIds);
+
+      if (missionsError) throw missionsError;
+
+      // 3. 미션 로그와 미션 정보 결합
+      const formattedLogs = missionLogs
+        .map((log) => {
+          const mission = missionsData?.find((m) => m.id === log.mission_id);
+          return {
             mission_id: log.mission_id,
             completed_at: log.completed_at,
-            mission: {
-              id: log.missions.id,
-              teacher_id: log.missions.teacher_id,
-              school_id: log.missions.school_id,
-              title: log.missions.title,
-              content: log.missions.content || log.missions.title,
-              description: log.missions.description,
-              is_active: log.missions.is_active,
-              order_index: log.missions.order_index,
-              order: log.missions.order_index,
-              created_at: log.missions.created_at,
-              updated_at: log.missions.updated_at,
-              user_id: log.missions.teacher_id,
-            } as Mission,
-          })
-        ) || [];
+            mission: mission
+              ? ({
+                  id: mission.id,
+                  teacher_id: mission.teacher_id,
+                  school_id: mission.school_id,
+                  title: mission.title,
+                  content: mission.title, // content가 없으면 title 사용
+                  description: mission.description,
+                  is_active: mission.is_active,
+                  order_index: mission.order_index,
+                  order: mission.order_index,
+                  created_at: mission.created_at,
+                  updated_at: mission.updated_at,
+                  user_id: mission.teacher_id,
+                } as Mission)
+              : null,
+          };
+        })
+        .filter((log): log is MissionLogWithDetails => log.mission !== null);
+
+      console.log("포맷된 미션 로그:", formattedLogs);
 
       // AI 피드백 생성
       const feedback = await generateMissionFeedback(
