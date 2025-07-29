@@ -42,7 +42,12 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
   const handleGenerateFeedback = async () => {
     const { should, targetDate } = shouldGenerateFeedback();
 
+    console.log("=== handleGenerateFeedback 시작 ===");
+    console.log("should:", should);
+    console.log("targetDate:", targetDate);
+
     if (!should || !targetDate) {
+      console.log("피드백 생성 조건 미충족");
       return;
     }
 
@@ -50,6 +55,13 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
 
     try {
       // 이전 평일의 미션 로그 가져오기
+      console.log("미션 로그 조회 시작:", {
+        studentId,
+        targetDate,
+        startTime: `${targetDate}T00:00:00+09:00`,
+        endTime: `${targetDate}T23:59:59+09:00`,
+      });
+
       const { data: missionLogs, error: logsError } = await supabase
         .from("mission_logs")
         .select(
@@ -71,8 +83,14 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
         `
         )
         .eq("student_id", studentId)
-        .gte("completed_at", `${targetDate}T00:00:00`)
-        .lt("completed_at", `${targetDate}T23:59:59`);
+        .gte("completed_at", `${targetDate}T00:00:00+09:00`)
+        .lt("completed_at", `${targetDate}T23:59:59+09:00`);
+
+      console.log("미션 로그 조회 결과:", {
+        missionLogs,
+        logsError,
+        count: missionLogs?.length || 0,
+      });
 
       if (logsError) throw logsError;
 
@@ -126,38 +144,51 @@ const MissionFeedback: React.FC<MissionFeedbackProps> = ({
       console.log("=== MissionFeedback 체크 시작 ===");
       console.log("Feedbacks loaded:", feedbacks);
       console.log("현재 시간대:", timeZone);
+      console.log("loading:", loading);
+      console.log("studentId:", studentId);
+      console.log("studentName:", studentName);
 
-      const todayFeedback = getTodaysFeedback();
+      // 1. 먼저 어제의 피드백이 필요한지 확인하고 생성
+      const { should, targetDate } = shouldGenerateFeedback();
+      console.log("피드백 생성 필요 여부:", should, "타겟 날짜:", targetDate);
 
-      if (todayFeedback) {
-        console.log("이전 평일의 피드백 발견:", todayFeedback);
-        setCurrentFeedback(todayFeedback.contents);
+      if (should) {
+        console.log("피드백 생성 시작...");
+        await handleGenerateFeedback();
+        return; // 피드백 생성 후 종료 (다음 렌더링에서 표시됨)
+      }
+
+      // 2. 오늘 표시할 피드백 가져오기 (이전 평일의 피드백)
+      const feedbackToShow = getTodaysFeedback();
+      console.log("오늘 표시할 피드백:", feedbackToShow);
+
+      if (feedbackToShow) {
+        console.log("이전 평일의 피드백 표시:", feedbackToShow);
+        setCurrentFeedback(feedbackToShow.contents);
       } else {
-        // 오늘 피드백이 없으면 가장 최근 피드백을 표시
+        // 표시할 피드백이 없으면 가장 최근 피드백을 표시
         const latestFeedback = getLatestFeedback();
+        console.log("가장 최근 피드백:", latestFeedback);
+
         if (latestFeedback) {
           console.log("가장 최근 피드백 표시:", latestFeedback);
           setCurrentFeedback(latestFeedback.contents);
-        } else {
-          // 피드백이 전혀 없고 생성이 필요한 경우에만 생성
-          const { should, targetDate } = shouldGenerateFeedback();
-          console.log(
-            "피드백 생성 필요 여부:",
-            should,
-            "타겟 날짜:",
-            targetDate
-          );
-          if (should) {
-            await handleGenerateFeedback();
-          }
         }
       }
     };
 
-    if (!loading && feedbacks) {
+    if (!loading && feedbacks !== undefined && studentId && studentName) {
+      console.log("피드백 체크 조건 충족, checkAndGenerateFeedback 실행");
       checkAndGenerateFeedback();
+    } else {
+      console.log("피드백 체크 조건 미충족:", {
+        loading,
+        feedbacks: feedbacks !== undefined,
+        studentId: !!studentId,
+        studentName: !!studentName,
+      });
     }
-  }, [loading, feedbacks]);
+  }, [loading, feedbacks, studentId, studentName]);
 
   // 날짜 포맷팅
   const formatDate = (dateString: string) => {

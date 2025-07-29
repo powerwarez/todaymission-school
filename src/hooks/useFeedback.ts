@@ -19,8 +19,8 @@ export const useFeedback = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 오늘 날짜의 피드백 가져오기
-  const getTodaysFeedback = () => {
+  // 오늘 표시할 피드백 가져오기 (이전 평일의 피드백)
+  const getFeedbackToShowToday = () => {
     const now = DateTime.now().setZone(timeZone);
 
     // 주말이면 금요일의 피드백을 찾음
@@ -221,11 +221,21 @@ export const useFeedback = (
       return { should: false, targetDate: null };
     }
 
-    // 이전 평일 날짜 계산
-    const previousWeekday = getPreviousWeekday(now);
-    const targetDate = previousWeekday.toFormat("yyyy-MM-dd");
-
-    console.log("타겟 날짜 (이전 평일):", targetDate);
+    // 피드백을 생성할 날짜 계산
+    // 월요일이면 금요일의 피드백을 생성
+    // 화~금요일이면 어제의 피드백을 생성
+    let targetDate: string;
+    if (now.weekday === 1) {
+      // 월요일 (1)
+      const lastFriday = now.minus({ days: 3 }); // 금요일
+      targetDate = lastFriday.toFormat("yyyy-MM-dd");
+      console.log("월요일이므로 금요일 피드백 확인:", targetDate);
+    } else {
+      // 화~금요일
+      const yesterday = now.minus({ days: 1 });
+      targetDate = yesterday.toFormat("yyyy-MM-dd");
+      console.log("타겟 날짜 (어제):", targetDate);
+    }
 
     // 해당 날짜의 피드백이 이미 있는지 확인
     const existingFeedback = getFeedbackByDate(targetDate);
@@ -249,7 +259,8 @@ export const useFeedback = (
     feedbacks,
     loading,
     error,
-    getTodaysFeedback,
+    getFeedbackToShowToday,
+    getTodaysFeedback: getFeedbackToShowToday, // 하위 호환성을 위해 유지
     getFeedbackByDate,
     getLatestFeedback,
     createFeedback,
