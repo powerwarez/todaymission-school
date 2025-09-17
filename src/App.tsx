@@ -241,25 +241,6 @@ const AppContent: React.FC = () => {
         />
       </Route>
 
-      {/* 학생 라우트 */
-
-      <Route
-        path="/student/*"
-        element={
-          <PrivateRoute requiredRole="student">
-            <MainLayout />
-          </PrivateRoute>
-        }>
-        <Route
-          path="dashboard"
-          element={<TodayMissionPage />}
-        />
-        <Route
-          path="hall-of-fame"
-          element={<HallOfFamePage />}
-        />
-      </Route>
-
       {/* 기존 로그인 페이지는 교사 로그인으로 리다이렉트 */}
       <Route
         path="/login"
