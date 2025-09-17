@@ -9,7 +9,6 @@ import { useNotificationState } from "./hooks/useNotificationState";
 import { useTheme } from "./hooks/useTheme";
 import MainLayout from "./layouts/MainLayout";
 import TeacherLoginPage from "./pages/TeacherLoginPage";
-import StudentLoginPage from "./pages/StudentLoginPage";
 import TodayMissionPage from "./pages/TodayMissionPage";
 import HallOfFamePage from "./pages/HallOfFamePage";
 import MissionSettingsPage from "./pages/MissionSettingsPage";
@@ -187,11 +186,6 @@ const AppContent: React.FC = () => {
                     className="block w-full bg-blue-600 text-white text-center py-4 px-6 rounded-xl hover:bg-blue-700 transition-colors font-medium">
                     교사로 시작하기
                   </a>
-                  <a
-                    href="/student/login"
-                    className="block w-full bg-green-600 text-white text-center py-4 px-6 rounded-xl hover:bg-green-700 transition-colors font-medium">
-                    학생으로 시작하기
-                  </a>
                 </div>
               </div>
             </div>
@@ -247,15 +241,7 @@ const AppContent: React.FC = () => {
         />
       </Route>
 
-      {/* 학생 라우트 */}
-      <Route
-        path="/student/login"
-        element={
-          <PublicRoute>
-            <StudentLoginPage />
-          </PublicRoute>
-        }
-      />
+      {/* 학생 라우트 */
 
       <Route
         path="/student/*"
