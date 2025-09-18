@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import QRCode from "qrcode";
 import {
   Document,
@@ -12,7 +12,9 @@ import {
 } from "@react-pdf/renderer";
 import { StudentCreationResult } from "../types/index";
 import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
 import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 // 한글 폰트 등록
 Font.register({
@@ -32,6 +34,7 @@ Font.register({
 interface StudentQRCodesPDFProps {
   students: StudentCreationResult[];
   schoolName: string;
+  className?: string;
 }
 
 // PDF Styles
@@ -182,13 +185,29 @@ const QRCodeDocument: React.FC<{
 const StudentQRCodesPDF: React.FC<StudentQRCodesPDFProps> = ({
   students,
   schoolName,
+  className,
 }) => {
-  const [qrCodes, setQrCodes] = React.useState<{
+  const [qrCodes, setQrCodes] = useState<{
     [key: string]: string;
   }>({});
-  const [generating, setGenerating] = React.useState(true);
+  const [generating, setGenerating] = useState(true);
+  const [consentChecked, setConsentChecked] = useState(false);
 
-  React.useEffect(() => {
+  // 로컬스토리지에서 체크박스 상태 불러오기
+  useEffect(() => {
+    const savedConsent = localStorage.getItem('privacyConsentChecked');
+    if (savedConsent === 'true') {
+      setConsentChecked(true);
+    }
+  }, []);
+
+  // 체크박스 상태 변경 처리
+  const handleConsentChange = (checked: boolean) => {
+    setConsentChecked(checked);
+    localStorage.setItem('privacyConsentChecked', checked.toString());
+  };
+
+  useEffect(() => {
     const generateQRCodes = async () => {
       const codes: { [key: string]: string } = {};
 
@@ -233,23 +252,47 @@ const StudentQRCodesPDF: React.FC<StudentQRCodesPDFProps> = ({
   }
 
   return (
-    <PDFDownloadLink
-      document={
-        <QRCodeDocument
-          students={students}
-          schoolName={schoolName}
-          qrCodes={qrCodes}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="privacy-consent"
+          checked={consentChecked}
+          onCheckedChange={handleConsentChange}
         />
-      }
-      fileName={`${schoolName}_학생_QR코드.pdf`}
-    >
-      {({ loading }) => (
-        <Button disabled={loading}>
-          <Download className="mr-2 h-4 w-4" />
-          {loading ? "PDF 생성 중..." : "QR 코드 PDF 다운로드"}
-        </Button>
-      )}
-    </PDFDownloadLink>
+        <label
+          htmlFor="privacy-consent"
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          개인정보 이용 동의서를 모두 받았습니다
+        </label>
+      </div>
+      <PDFDownloadLink
+        document={
+          <QRCodeDocument
+            students={students}
+            schoolName={schoolName}
+            qrCodes={qrCodes}
+          />
+        }
+        fileName={`${schoolName}_학생_QR코드.pdf`}
+      >
+        {({ loading }) => (
+          <Button
+            disabled={loading || !consentChecked}
+            onClick={(e) => {
+              if (!consentChecked) {
+                e.preventDefault();
+                toast.error("개인정보 이용 동의서를 모두 받았습니다를 체크해주세요.");
+              }
+            }}
+            className={!consentChecked ? "opacity-50 cursor-not-allowed" : ""}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {loading ? "PDF 생성 중..." : "QR 코드 PDF 다운로드"}
+          </Button>
+        )}
+      </PDFDownloadLink>
+    </div>
   );
 };
 
