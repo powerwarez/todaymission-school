@@ -12,6 +12,7 @@ import {
   LuUsers,
   LuTrendingUp,
   LuMail,
+  LuBookOpen,
 } from "react-icons/lu";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -64,6 +65,11 @@ const Sidebar: React.FC = () => {
       path: "/teacher/students",
       name: "학생 관리",
       icon: LuUsers,
+    },
+    {
+      path: "/teacher/guide",
+      name: "사용 안내",
+      icon: LuBookOpen,
     },
   ];
 

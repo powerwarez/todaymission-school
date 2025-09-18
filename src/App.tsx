@@ -9,13 +9,13 @@ import { useNotificationState } from "./hooks/useNotificationState";
 import { useTheme } from "./hooks/useTheme";
 import MainLayout from "./layouts/MainLayout";
 import TeacherLoginPage from "./pages/TeacherLoginPage";
-import TodayMissionPage from "./pages/TodayMissionPage";
 import HallOfFamePage from "./pages/HallOfFamePage";
 import MissionSettingsPage from "./pages/MissionSettingsPage";
 import BadgeSettingsPage from "./pages/BadgeSettingsPage";
 import TeacherStudentsPage from "./pages/TeacherStudentsPage";
 import TeacherStatisticsPage from "./pages/TeacherStatisticsPage";
 import TeacherOnboardingPage from "./pages/TeacherOnboardingPage";
+import TeacherGuidePage from "./pages/TeacherGuidePage";
 import BadgeNotificationModal from "./components/BadgeNotificationModal";
 import { BadgeSelectionModal } from "./components/BadgeSelectionModal";
 import { Toaster } from "react-hot-toast";
@@ -238,6 +238,10 @@ const AppContent: React.FC = () => {
         <Route
           path="students"
           element={<TeacherStudentsPage />}
+        />
+        <Route
+          path="guide"
+          element={<TeacherGuidePage />}
         />
       </Route>
 
