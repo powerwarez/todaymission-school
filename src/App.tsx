@@ -17,6 +17,7 @@ import TeacherStatisticsPage from "./pages/TeacherStatisticsPage";
 import TeacherOnboardingPage from "./pages/TeacherOnboardingPage";
 import TeacherGuidePage from "./pages/TeacherGuidePage";
 import BadgeNotificationModal from "./components/BadgeNotificationModal";
+import LoadingWithRefresh from "./components/LoadingWithRefresh";
 import { BadgeSelectionModal } from "./components/BadgeSelectionModal";
 import { Toaster } from "react-hot-toast";
 import { Toaster as Sonner } from "./components/ui/sonner";
@@ -36,15 +37,11 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   // 로딩 중일 때
   if (loading) {
     return (
-      <div className="w-full h-screen flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold text-black">
-            로딩 중...
-          </h1>
-          <p className="mt-2 text-gray-600">
-            잠시만 기다려주세요.
-          </p>
-        </div>
+      <div className="w-full h-screen flex items-center justify-center bg-gray-50">
+        <LoadingWithRefresh
+          message="프로필을 불러오는 중입니다..."
+          className=""
+        />
       </div>
     );
   }
