@@ -331,11 +331,21 @@ const TeacherStudentsPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">학생 관리</h1>
-          <p className="text-gray-600 mt-1">
+          <p
+            className="mt-1"
+            style={{ color: "var(--color-text-muted)" }}>
             학생 계정을 생성하고 관리합니다.
           </p>
-          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-gray-700 mb-2">
+          <div
+            className="mt-3 p-3 rounded-lg"
+            style={{
+              backgroundColor: "var(--color-primary-light)",
+            }}>
+            <p
+              className="text-sm mb-2"
+              style={{
+                color: "var(--color-text-secondary)",
+              }}>
               개인정보 제공 동의서를 다운받아서 오프라인으로
               받으셨다면 아래를 체크해주세요.
               <br />
@@ -398,7 +408,10 @@ const TeacherStudentsPage: React.FC = () => {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <Search
+          className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4"
+          style={{ color: "var(--color-text-muted)" }}
+        />
         <Input
           type="text"
           placeholder="학생 이름으로 검색..."
@@ -412,7 +425,7 @@ const TeacherStudentsPage: React.FC = () => {
       {filteredStudents.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
-            <p className="text-gray-500">
+            <p style={{ color: "var(--color-text-muted)" }}>
               {searchTerm
                 ? "검색 결과가 없습니다."
                 : "아직 등록된 학생이 없습니다."}
@@ -440,13 +453,17 @@ const TeacherStudentsPage: React.FC = () => {
                     <CardTitle className="text-lg">
                       {student.name}
                     </CardTitle>
-                    <CardDescription className="text-sm mt-1">
+                    <CardDescription
+                      className="text-sm mt-1"
+                      style={{
+                        color: "var(--color-text-muted)",
+                      }}>
                       학생 ID: {student.id}
                     </CardDescription>
                   </div>
                   <Badge
                     variant="secondary"
-                    className="cursor-pointer hover:bg-gray-200"
+                    className="cursor-pointer theme-hover-bg"
                     onClick={() => handleShowQR(student)}>
                     <QrCode className="h-3 w-3 mr-1" />
                     QR
@@ -455,7 +472,11 @@ const TeacherStudentsPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">
+                  <span
+                    className="text-sm"
+                    style={{
+                      color: "var(--color-text-muted)",
+                    }}>
                     가입일:{" "}
                     {new Date(
                       student.created_at
@@ -474,7 +495,10 @@ const TeacherStudentsPage: React.FC = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="theme-hover-error"
+                      style={{
+                        color: "var(--color-error)",
+                      }}
                       onClick={() => {
                         setStudentToDelete(student);
                         setShowDeleteDialog(true);
@@ -501,7 +525,14 @@ const TeacherStudentsPage: React.FC = () => {
         />
       )}
       {showCreateModal && !userProfile?.school_id && (
-        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div
+          className="fixed top-4 right-4 px-4 py-3 rounded"
+          style={{
+            backgroundColor: "var(--color-bg-error)",
+            borderColor: "var(--color-border-error)",
+            color: "var(--color-error)",
+            border: "1px solid",
+          }}>
           학교 정보가 없습니다. 먼저 학교를 설정해주세요.
         </div>
       )}
@@ -510,17 +541,29 @@ const TeacherStudentsPage: React.FC = () => {
       <Dialog
         open={showQRDialog}
         onOpenChange={setShowQRDialog}>
-        <DialogContent className="sm:max-w-md bg-white">
+        <DialogContent
+          className="sm:max-w-md"
+          style={{
+            backgroundColor: "var(--color-bg-card)",
+          }}>
           <DialogHeader>
-            <DialogTitle className="text-gray-900">
+            <DialogTitle
+              style={{
+                color: "var(--color-text-primary)",
+              }}>
               {selectedStudent?.name} 학생 QR 코드
             </DialogTitle>
-            <DialogDescription className="text-gray-600">
+            <DialogDescription
+              style={{ color: "var(--color-text-muted)" }}>
               이 QR 코드를 스캔하여 학생이 로그인할 수
               있습니다.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+          <div
+            className="flex items-center justify-center p-6 rounded-lg"
+            style={{
+              backgroundColor: "var(--color-bg-hover)",
+            }}>
             {qrCodeUrl && (
               <img
                 src={qrCodeUrl}
@@ -529,7 +572,10 @@ const TeacherStudentsPage: React.FC = () => {
               />
             )}
           </div>
-          <DialogFooter className="bg-white">
+          <DialogFooter
+            style={{
+              backgroundColor: "var(--color-bg-card)",
+            }}>
             <Button
               variant="outline"
               onClick={() => {
@@ -553,11 +599,16 @@ const TeacherStudentsPage: React.FC = () => {
         onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-red-600">
+            <DialogTitle
+              style={{ color: "var(--color-error)" }}>
               학생 계정 삭제
             </DialogTitle>
             <DialogDescription className="space-y-2">
-              <p className="font-semibold text-black">
+              <p
+                className="font-semibold"
+                style={{
+                  color: "var(--color-text-primary)",
+                }}>
                 정말로 {studentToDelete?.name} 학생의 계정을
                 삭제하시겠습니까?
               </p>
@@ -587,7 +638,9 @@ const TeacherStudentsPage: React.FC = () => {
               variant="destructive"
               onClick={handleDeleteStudent}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700">
+              style={{
+                backgroundColor: "var(--color-error)",
+              }}>
               {isDeleting ? "삭제 중..." : "삭제"}
             </Button>
           </DialogFooter>

@@ -114,6 +114,22 @@
       background-color 0.2s ease-in-out;
   }
 
+  /* 테마 색상을 사용하는 hover 효과 */
+  .theme-hover-bg:hover {
+    background-color: var(
+      --hover-bg,
+      var(--color-bg-hover)
+    );
+  }
+
+  .theme-hover-error:hover {
+    background-color: var(--color-bg-error);
+  }
+
+  .theme-hover-primary:hover {
+    background-color: var(--color-primary-light);
+  }
+
   /* 기본 입력 필드 스타일 - 하늘색 테마로 변경 */
   input[type="text"],
   input[type="email"],
