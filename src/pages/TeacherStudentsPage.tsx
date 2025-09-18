@@ -36,6 +36,7 @@ import {
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "../components/ui/checkbox";
 import QRCode from "qrcode";
 import { pdf } from "@react-pdf/renderer";
 import {
@@ -67,6 +68,14 @@ const TeacherStudentsPage: React.FC = () => {
   const [studentToDelete, setStudentToDelete] =
     useState<UserProfile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(
+    () => {
+      return (
+        localStorage.getItem("privacyConsentChecked") ===
+        "true"
+      );
+    }
+  );
 
   useEffect(() => {
     if (userProfile?.id) {
@@ -326,6 +335,33 @@ const TeacherStudentsPage: React.FC = () => {
           <p className="text-gray-600 mt-1">
             학생 계정을 생성하고 관리합니다.
           </p>
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-gray-700 mb-2">
+              개인정보 제공 동의서를 다운받아서 오프라인으로
+              받으셨다면 아래를 체크해주세요.
+              <br />
+              학생 로그인 안내장을 다운받을 수 있습니다.
+            </p>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="privacy-consent-main"
+                checked={consentChecked}
+                onCheckedChange={(checked) => {
+                  const isChecked = checked === true;
+                  setConsentChecked(isChecked);
+                  localStorage.setItem(
+                    "privacyConsentChecked",
+                    isChecked.toString()
+                  );
+                }}
+              />
+              <label
+                htmlFor="privacy-consent-main"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                개인정보 이용 동의서를 모두 받았습니다
+              </label>
+            </div>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -352,7 +388,7 @@ const TeacherStudentsPage: React.FC = () => {
           {students.length > 0 && schoolName && (
             <StudentQRCodesPDF
               students={students
-                .filter((student) => student.qr_token) // QR 토큰이 있는 학생만
+                .filter((student) => student.qr_token)
                 .map((student) => ({
                   student_id: student.id,
                   student_name: student.name,
@@ -364,6 +400,7 @@ const TeacherStudentsPage: React.FC = () => {
                   ? `${userProfile.name} 선생님 반`
                   : "학급"
               }
+              consentChecked={consentChecked}
             />
           )}
           <Button onClick={() => setShowCreateModal(true)}>
