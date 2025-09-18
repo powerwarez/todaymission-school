@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { Link, useLocation } from "react-router-dom";
 import {
   LuLayoutDashboard,
@@ -117,6 +118,18 @@ const Sidebar: React.FC = () => {
 
   const toggleSidebar = () => {
     setIsMinimized(!isMinimized);
+  };
+
+  const copyEmailToClipboard = () => {
+    const email = "powerware@naver.com";
+    navigator.clipboard.writeText(email).then(
+      () => {
+        toast.success("이메일 주소가 복사되었습니다.");
+      },
+      () => {
+        toast.error("복사에 실패했습니다.");
+      }
+    );
   };
 
   return (
@@ -292,19 +305,24 @@ const Sidebar: React.FC = () => {
               <LuMail className="mr-2" />
               <div>
                 <span className="font-medium">문의: </span>
-                <a
-                  href="mailto:powerware@naver.com"
-                  className="hover:underline"
+                <button
+                  onClick={copyEmailToClipboard}
+                  className="hover:underline cursor-pointer"
                   style={{
                     color: "var(--color-text-secondary)",
-                  }}>
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    font: "inherit",
+                  }}
+                  title="클릭하여 복사">
                   서동성(powerware@naver.com)
-                </a>
+                </button>
               </div>
             </div>
           ) : (
-            <a
-              href="mailto:powerware@naver.com"
+            <button
+              onClick={copyEmailToClipboard}
               className="flex justify-center p-2 rounded-lg transition-colors"
               style={{ backgroundColor: "transparent" }}
               onMouseEnter={(e) => {
@@ -315,10 +333,10 @@ const Sidebar: React.FC = () => {
                 e.currentTarget.style.backgroundColor =
                   "transparent";
               }}
-              title="문의: 서동성(powerware@naver.com)"
-              aria-label="Contact">
+              title="문의: 서동성(powerware@naver.com) - 클릭하여 복사"
+              aria-label="Copy contact email">
               <LuMail className="text-xl" />
-            </a>
+            </button>
           )}
         </div>
         <button
