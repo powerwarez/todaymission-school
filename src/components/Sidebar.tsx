@@ -10,6 +10,7 @@ import {
   LuBadge,
   LuUsers,
   LuTrendingUp,
+  LuMail,
 } from "react-icons/lu";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -132,11 +133,28 @@ const Sidebar: React.FC = () => {
       <div>
         {/* Header with user info */}
         <div className="mb-8">
-          {!isMinimized && (
+          {!isMinimized ? (
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold">
-                오늘의 미션
-              </h1>
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold">
+                  오늘의 미션
+                </h1>
+                <button
+                  onClick={toggleSidebar}
+                  className="p-2 rounded-lg transition-colors"
+                  style={{ backgroundColor: "transparent" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      "var(--color-bg-hover)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      "transparent";
+                  }}
+                  aria-label="Collapse sidebar">
+                  <LuChevronsLeft className="text-xl" />
+                </button>
+              </div>
               {userProfile && (
                 <div className="text-sm opacity-80">
                   <p>{userProfile.name}</p>
@@ -179,6 +197,24 @@ const Sidebar: React.FC = () => {
                   )}
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <button
+                onClick={toggleSidebar}
+                className="p-2 rounded-lg transition-colors"
+                style={{ backgroundColor: "transparent" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor =
+                    "var(--color-bg-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor =
+                    "transparent";
+                }}
+                aria-label="Expand sidebar">
+                <LuChevronsRight className="text-xl" />
+              </button>
             </div>
           )}
         </div>
@@ -242,7 +278,49 @@ const Sidebar: React.FC = () => {
           </ul>
         </nav>
       </div>
-      <div className="flex flex-col items-center space-y-2">
+      <div className="flex flex-col space-y-2">
+        {/* 문의 정보 */}
+        <div
+          className="px-2 py-3 border-t"
+          style={{
+            borderColor: "var(--color-border-light)",
+          }}>
+          {!isMinimized ? (
+            <div
+              className="flex items-center text-sm"
+              style={{ color: "var(--color-text-muted)" }}>
+              <LuMail className="mr-2" />
+              <div>
+                <span className="font-medium">문의: </span>
+                <a
+                  href="mailto:powerware@naver.com"
+                  className="hover:underline"
+                  style={{
+                    color: "var(--color-text-secondary)",
+                  }}>
+                  서동성(powerware@naver.com)
+                </a>
+              </div>
+            </div>
+          ) : (
+            <a
+              href="mailto:powerware@naver.com"
+              className="flex justify-center p-2 rounded-lg transition-colors"
+              style={{ backgroundColor: "transparent" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor =
+                  "var(--color-bg-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor =
+                  "transparent";
+              }}
+              title="문의: 서동성(powerware@naver.com)"
+              aria-label="Contact">
+              <LuMail className="text-xl" />
+            </a>
+          )}
+        </div>
         <button
           onClick={handleLogout}
           className={`flex items-center w-full p-2 rounded-lg transition-colors ${
@@ -264,29 +342,6 @@ const Sidebar: React.FC = () => {
             }`}
           />
           {!isMinimized && <span>로그아웃</span>}
-        </button>
-        <button
-          onClick={toggleSidebar}
-          className="p-2 rounded-lg self-center transition-colors"
-          style={{ backgroundColor: "transparent" }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor =
-              "var(--color-bg-hover)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor =
-              "transparent";
-          }}
-          aria-label={
-            isMinimized
-              ? "Expand sidebar"
-              : "Collapse sidebar"
-          }>
-          {isMinimized ? (
-            <LuChevronsRight className="text-xl" />
-          ) : (
-            <LuChevronsLeft className="text-xl" />
-          )}
         </button>
       </div>
     </aside>

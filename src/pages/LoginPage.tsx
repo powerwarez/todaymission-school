@@ -12,16 +12,23 @@ const LoginPage: React.FC = () => {
     setError(null);
     try {
       // 디버깅: 현재 origin 확인
-      console.log("Current origin:", window.location.origin);
-      console.log("Redirect URL:", `${window.location.origin}/`);
+      console.log(
+        "Current origin:",
+        window.location.origin
+      );
+      console.log(
+        "Redirect URL:",
+        `${window.location.origin}/`
+      );
 
-      const { error: signInError } = await supabase.auth.signInWithOAuth({
-        provider: provider,
-        options: {
-          // 동적으로 현재 도메인 기반 리다이렉트 URL 설정
-          redirectTo: `${window.location.origin}/`,
-        },
-      });
+      const { error: signInError } =
+        await supabase.auth.signInWithOAuth({
+          provider: provider,
+          options: {
+            // 동적으로 현재 도메인 기반 리다이렉트 URL 설정
+            redirectTo: `${window.location.origin}/`,
+          },
+        });
       if (signInError) throw signInError;
       // 성공하면 Supabase가 리다이렉트 처리
     } catch (err: unknown) {
@@ -49,21 +56,26 @@ const LoginPage: React.FC = () => {
   return (
     <div
       className="flex items-center justify-center h-screen"
-      style={{ backgroundColor: "var(--color-bg-main)" }}
-    >
+      style={{ backgroundColor: "var(--color-bg-main)" }}>
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-xs text-center">
         <h1
           className="text-3xl font-bold mb-8"
-          style={{ color: "var(--color-text-primary)" }}
-        >
+          style={{ color: "var(--color-text-primary)" }}>
           오늘 미션!
         </h1>
-
+        <p className="text-sm mb-4">
+          오늘의 미션을 위해 로그인해주세요.
+          <br />
+          이 사이트는 교사용 사이트입니다.
+          <br />
+          학생들에게 이 사이트가 노출되지 않도록
+          주의해주세요.
+          <br />
+        </p>
         {error && (
           <p
             style={{ color: "var(--color-text-error)" }}
-            className="text-sm mb-4"
-          >
+            className="text-sm mb-4">
             {error}
           </p>
         )}
@@ -71,8 +83,7 @@ const LoginPage: React.FC = () => {
         <button
           onClick={() => handleLogin("kakao")}
           disabled={loading}
-          className="w-full bg-[#FEE500] text-[#3C1E1E] font-semibold py-3 px-4 rounded-lg flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+          className="w-full bg-[#FEE500] text-[#3C1E1E] font-semibold py-3 px-4 rounded-lg flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
           <FaComment className="mr-2" />
           {loading ? "로그인 중..." : "카카오 로그인"}
         </button>
