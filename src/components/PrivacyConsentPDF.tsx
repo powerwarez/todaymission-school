@@ -9,30 +9,13 @@ import {
   pdf,
 } from "@react-pdf/renderer";
 
-// 한글 폰트 등록
-try {
-  Font.register({
-    family: "NanumGothic",
-    fonts: [
-      {
-        src: "https://cdn.jsdelivr.net/gh/wiziple/font-nanum@master/fonts/NanumGothic/NanumGothic.ttf",
-        fontWeight: 400,
-      },
-      {
-        src: "https://cdn.jsdelivr.net/gh/wiziple/font-nanum@master/fonts/NanumGothic/NanumGothicBold.ttf",
-        fontWeight: 700,
-      },
-    ],
-  });
-} catch (error) {
-  console.log("Font registration error:", error);
-}
+// 한글 폰트 등록 (간단한 방식으로 변경)
+// Font.register는 제거하고 시스템 폰트 사용
 
 // PDF 스타일
 const styles = StyleSheet.create({
   page: {
     padding: 40,
-    fontFamily: "NanumGothic",
     backgroundColor: "#ffffff",
   },
   header: {

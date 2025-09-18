@@ -17,15 +17,42 @@ export default {
     },
     extend: {
       colors: {
-        // 여름 하늘 테마 - 파스텔톤 파란색과 하늘색 계열
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
         primary: {
-          light: "#e0f2fe", // 아주 연한 하늘색 (배경 등)
-          DEFAULT: "#7dd3fc", // 기본 하늘색 (버튼, 강조)
-          medium: "#38bdf8", // 조금 더 진한 하늘색
-          dark: "#0284c7", // 진한 파란색 (텍스트, 아이콘)
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+          light: "#e0f2fe",
+          medium: "#38bdf8",
+          dark: "#0284c7",
         },
-        secondary: "#a5b4fc", // 보조 색상 (파스텔 라벤더)
-        accent: "#34d399", // 강조 색상 (파스텔 그린 - 완료 표시 등)
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
         // 기존 pink 색상을 sky 색상으로 매핑 (기존 코드 호환성을 위해)
         pink: {
           50: "#f0f9ff", // sky-50

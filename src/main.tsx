@@ -1,3 +1,10 @@
+// Buffer polyfill for browser
+import { Buffer } from "buffer";
+window.Buffer = window.Buffer || Buffer;
+if (typeof global === "undefined") {
+  window.global = window;
+}
+
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
