@@ -511,8 +511,10 @@ const BadgeSettingsPage: React.FC = () => {
 
       {/* 로딩 상태 표시 */}
       {loading && (
-        <LoadingWithRefresh
-          onRefresh={() => {
+        <LoadingWithRefresh 
+          message="배지 데이터를 불러오는 중입니다..."
+          // onRefresh prop 제거 - 기본 새로고침 사용
+          /* onRefresh={() => {
             setLoading(true);
             setError(null);
             const fetchBadgeData = async () => {
@@ -605,7 +607,7 @@ const BadgeSettingsPage: React.FC = () => {
               }
             };
             fetchBadgeData();
-          }}
+          }} */
         />
       )}
 
