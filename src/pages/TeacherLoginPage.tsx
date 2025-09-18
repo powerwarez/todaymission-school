@@ -132,9 +132,15 @@ const TeacherLoginPage: React.FC = () => {
                 간편하게 학생 계정이 만들어져요!
               </p>
               <p className="text-gray-600 font-medium mb-1">
-                선생님께서 학생 계정만 생성하면 개인정보이용
-                동의서 양식과 학생 로그인 안내장이 자동으로
-                생성돼요!
+                선생님께서 학생 계정만 생성하면 <br />
+                <span style={{ color: "blue" }}>
+                  개인정보이용 동의서 양식
+                </span>
+                과{" "}
+                <span style={{ color: "red" }}>
+                  학생 로그인 안내장
+                </span>
+                이 자동으로 생성돼요!
               </p>
               <ol className="text-blue-700 space-y-1">
                 <li>1. 카카오 계정으로 간편 로그인</li>
