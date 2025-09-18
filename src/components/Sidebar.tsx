@@ -299,25 +299,41 @@ const Sidebar: React.FC = () => {
             borderColor: "var(--color-border-light)",
           }}>
           {!isMinimized ? (
-            <div
-              className="flex items-center text-sm"
-              style={{ color: "var(--color-text-muted)" }}>
-              <LuMail className="mr-2" />
-              <div>
-                <span className="font-medium">문의: </span>
-                <button
-                  onClick={copyEmailToClipboard}
-                  className="hover:underline cursor-pointer"
-                  style={{
-                    color: "var(--color-text-secondary)",
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    font: "inherit",
-                  }}
-                  title="클릭하여 복사">
-                  서동성(powerware@naver.com)
-                </button>
+            <div className="px-2">
+              <div
+                className="flex items-start text-sm"
+                style={{
+                  color: "var(--color-text-muted)",
+                }}>
+                <LuMail className="mr-2 mt-0.5 flex-shrink-0" />
+                <div className="flex flex-col">
+                  <span className="font-medium mb-1">
+                    문의
+                  </span>
+                  <button
+                    onClick={copyEmailToClipboard}
+                    className="text-left hover:underline cursor-pointer"
+                    style={{
+                      color: "var(--color-text-secondary)",
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      font: "inherit",
+                      fontSize: "0.875rem",
+                    }}
+                    title="클릭하여 복사">
+                    <div className="font-medium">
+                      서동성
+                    </div>
+                    <div
+                      className="text-xs"
+                      style={{
+                        color: "var(--color-text-muted)",
+                      }}>
+                      powerware@naver.com
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
