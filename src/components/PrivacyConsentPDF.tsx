@@ -6,17 +6,32 @@ import {
   View,
   StyleSheet,
   Font,
-  pdf,
+  PDFDownloadLink,
 } from "@react-pdf/renderer";
+import { Button } from "./ui/button";
+import { FileText } from "lucide-react";
 
-// 한글 폰트 등록 (간단한 방식으로 변경)
-// Font.register는 제거하고 시스템 폰트 사용
+// 한글 폰트 등록
+Font.register({
+  family: "NotoSansKR",
+  fonts: [
+    {
+      src: "https://fonts.gstatic.com/ea/notosanskr/v2/NotoSansKR-Regular.woff2",
+      fontWeight: 400,
+    },
+    {
+      src: "https://fonts.gstatic.com/ea/notosanskr/v2/NotoSansKR-Bold.woff2",
+      fontWeight: 700,
+    },
+  ],
+});
 
 // PDF 스타일
 const styles = StyleSheet.create({
   page: {
     padding: 40,
     backgroundColor: "#ffffff",
+    fontFamily: "NotoSansKR",
   },
   header: {
     marginBottom: 30,
@@ -27,11 +42,13 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     marginBottom: 10,
     color: "#1f2937",
+    fontFamily: "NotoSansKR",
   },
   subtitle: {
     fontSize: 14,
     color: "#6b7280",
     marginBottom: 20,
+    fontFamily: "NotoSansKR",
   },
   section: {
     marginBottom: 20,
@@ -41,12 +58,14 @@ const styles = StyleSheet.create({
     fontWeight: 600,
     marginBottom: 10,
     color: "#374151",
+    fontFamily: "NotoSansKR",
   },
   paragraph: {
     fontSize: 12,
     lineHeight: 1.8,
     color: "#4b5563",
     marginBottom: 10,
+    fontFamily: "NotoSansKR",
   },
   list: {
     paddingLeft: 20,
@@ -57,6 +76,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.6,
     color: "#4b5563",
     marginBottom: 5,
+    fontFamily: "NotoSansKR",
   },
   infoTable: {
     marginTop: 20,
@@ -76,12 +96,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 600,
     color: "#374151",
+    fontFamily: "NotoSansKR",
   },
   infoValue: {
     width: "70%",
     padding: 10,
     fontSize: 12,
     color: "#4b5563",
+    fontFamily: "NotoSansKR",
   },
   signatureSection: {
     marginTop: 40,
@@ -94,6 +116,7 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     marginBottom: 30,
     textAlign: "center",
+    fontFamily: "NotoSansKR",
   },
   signatureLine: {
     marginTop: 10,
@@ -108,6 +131,7 @@ const styles = StyleSheet.create({
     width: "45%",
     fontSize: 12,
     color: "#6b7280",
+    fontFamily: "NotoSansKR",
   },
   footer: {
     marginTop: 30,
@@ -119,6 +143,7 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 10,
     color: "#9ca3af",
+    fontFamily: "NotoSansKR",
   },
 });
 
@@ -259,7 +284,12 @@ const PrivacyConsentDocument: React.FC<{
         </View>
         <View
           style={{ marginTop: 20, alignItems: "center" }}>
-          <Text style={{ fontSize: 12, color: "#4b5563" }}>
+          <Text
+            style={{
+              fontSize: 12,
+              color: "#4b5563",
+              fontFamily: "NotoSansKR",
+            }}>
             날짜: ______년 ______월 ______일
           </Text>
         </View>
@@ -274,35 +304,34 @@ const PrivacyConsentDocument: React.FC<{
   </Document>
 );
 
-// PDF 다운로드 함수
-export const downloadPrivacyConsentPDF = async (
-  schoolName?: string,
-  className?: string
-) => {
-  try {
-    const blob = await pdf(
-      <PrivacyConsentDocument
-        schoolName={schoolName}
-        className={className}
-      />
-    ).toBlob();
+// 개인정보 동의서 PDF 컴포넌트
+interface PrivacyConsentPDFButtonProps {
+  schoolName?: string;
+  className?: string;
+}
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `개인정보_이용_동의서_${
-      schoolName || "학교"
-    }.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    return true;
-  } catch (error) {
-    console.error("PDF 생성 오류:", error);
-    return false;
-  }
+export const PrivacyConsentPDFButton: React.FC<
+  PrivacyConsentPDFButtonProps
+> = ({ schoolName = "학교", className = "학급" }) => {
+  return (
+    <PDFDownloadLink
+      document={
+        <PrivacyConsentDocument
+          schoolName={schoolName}
+          className={className}
+        />
+      }
+      fileName={`개인정보_이용_동의서_${schoolName}.pdf`}>
+      {({ loading }) => (
+        <Button variant="outline" disabled={loading}>
+          <FileText className="mr-2 h-4 w-4" />
+          {loading
+            ? "PDF 생성 중..."
+            : "개인정보 동의서 다운로드"}
+        </Button>
+      )}
+    </PDFDownloadLink>
+  );
 };
 
 export default PrivacyConsentDocument;

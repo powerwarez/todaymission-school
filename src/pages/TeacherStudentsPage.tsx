@@ -8,7 +8,7 @@ import {
 import CreateStudentsModal from "../components/CreateStudentsModal";
 import StudentQRCodesPDF from "../components/StudentQRCodesPDF";
 import LoadingWithRefresh from "../components/LoadingWithRefresh";
-import { downloadPrivacyConsentPDF } from "../components/PrivacyConsentPDF";
+import { PrivacyConsentPDFButton } from "../components/PrivacyConsentPDF";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -33,7 +33,6 @@ import {
   Download,
   QrCode,
   Trash2,
-  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "../components/ui/checkbox";
@@ -364,27 +363,14 @@ const TeacherStudentsPage: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={async () => {
-              const success =
-                await downloadPrivacyConsentPDF(
-                  schoolName || "학교",
-                  userProfile?.name
-                    ? `${userProfile.name} 선생님 반`
-                    : "학급"
-                );
-              if (success) {
-                toast.success(
-                  "개인정보 이용 동의서가 다운로드되었습니다."
-                );
-              } else {
-                toast.error("다운로드에 실패했습니다.");
-              }
-            }}>
-            <FileText className="mr-2 h-4 w-4" />
-            개인정보 동의서 다운로드
-          </Button>
+          <PrivacyConsentPDFButton
+            schoolName={schoolName || "학교"}
+            className={
+              userProfile?.name
+                ? `${userProfile.name} 선생님 반`
+                : "학급"
+            }
+          />
           {students.length > 0 && schoolName && (
             <StudentQRCodesPDF
               students={students
