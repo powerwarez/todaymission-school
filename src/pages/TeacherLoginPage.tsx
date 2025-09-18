@@ -133,7 +133,7 @@ const TeacherLoginPage: React.FC = () => {
               </p>
               <p className="text-gray-600 font-medium mb-1">
                 선생님께서 학생 계정만 생성하면 <br />
-                <span style={{ color: "blue" }}>
+                <span style={{ color: "red" }}>
                   개인정보이용 동의서 양식
                 </span>
                 과{" "}
@@ -143,7 +143,9 @@ const TeacherLoginPage: React.FC = () => {
                 이 자동으로 생성돼요!
               </p>
               <ol className="text-blue-700 space-y-1">
-                <li>1. 카카오 계정으로 간편 로그인</li>
+                <li>
+                  1. 카카오 계정으로 간편 로그인(교사)
+                </li>
                 <li>2. 학교 정보 등록</li>
                 <li>
                   3. 학생 계정 생성 후 개인정보이용 동의서
@@ -184,6 +186,10 @@ const TeacherLoginPage: React.FC = () => {
                     https://todaymission.vercel.app/
                   </a>{" "}
                   입니다.
+                </li>
+                <li>
+                  • 학생용 페이지에서 QR 코드를 스캔하면
+                  학생 계정으로 로그인할 수 있어요.
                 </li>
               </ul>
             </div>
