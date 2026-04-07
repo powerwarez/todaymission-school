@@ -206,21 +206,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log("Auth state changed:", _event);
             console.log("Session:", session?.user?.id);
 
-            // 로그아웃이나 세션 만료가 아닌 경우에만 프로필 업데이트
+            if (_event === "TOKEN_REFRESHED" && session) {
+              // 토큰 갱신은 세션만 갱신하고 프로필은 변경되지 않는다.
+              // 이 콜백은 refreshSession()의 내부 락이 점유된 상태에서 실행되므로,
+              // 여기서 DB 쿼리(fetchUserProfile)를 하면 getSession() 재호출로 데드락이 발생한다.
+              setSession(session);
+              setUser(session.user);
+              return;
+            }
+
             if (_event !== "SIGNED_OUT" && session) {
               setSession(session);
               setUser(session.user);
               const profile = await fetchUserProfile(session.user);
               if (profile) {
                 setUserProfile(profile);
-              } else if (
-                _event === "TOKEN_REFRESHED" ||
-                _event === "USER_UPDATED"
-              ) {
-                // 토큰이 갱신되거나 사용자가 업데이트된 경우는 프로필이 없어도 정상
-                console.log("Token refreshed or user updated without profile");
+              } else if (_event === "USER_UPDATED") {
+                console.log("User updated without profile");
               } else {
-                // 새로운 사용자인 경우
                 setUserProfile(null);
               }
             } else if (_event === "SIGNED_OUT") {
