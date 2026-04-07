@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { Mission } from "../types";
-import { useOnPageVisible } from "./usePageVisibility";
 
 export const useMissions = () => {
   const { userProfile, isTeacher } = useAuth();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastVisibleFetchRef = useRef<number>(0);
 
   const fetchMissions = useCallback(async () => {
     // 프로필이 없으면 미션을 조회하지 않음
@@ -78,11 +78,38 @@ export const useMissions = () => {
     fetchMissions();
   }, [fetchMissions]);
 
-  // 페이지가 다시 보일 때 미션 새로고침
-  useOnPageVisible(() => {
-    console.log("[useMissions] Page visible, refreshing missions");
-    fetchMissions();
-  }, [fetchMissions]);
+  // 페이지가 다시 보일 때 세션 갱신 후 미션 새로고침
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleVisibilityChange = async () => {
+      if (document.hidden || !userProfile) return;
+
+      const now = Date.now();
+      if (now - lastVisibleFetchRef.current < 1000) return;
+      lastVisibleFetchRef.current = now;
+
+      console.log("[useMissions] Page visible, refreshing session and missions");
+
+      if (isTeacher) {
+        try {
+          await supabase.auth.refreshSession();
+        } catch (e) {
+          console.warn("[useMissions] Session refresh warning:", e);
+        }
+      }
+
+      if (!cancelled) {
+        fetchMissions();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchMissions, userProfile, isTeacher]);
 
   const addMission = async (missionData: {
     content: string;

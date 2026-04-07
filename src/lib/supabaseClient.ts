@@ -24,19 +24,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
-      console.log("Page visible: Checking Supabase connection");
+      console.log("Page visible: Refreshing Supabase session");
 
-      // 세션 갱신 시도
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        if (error) {
-          console.error("Error refreshing session:", error);
-        } else if (session) {
-          console.log("Session refreshed successfully");
-        }
-      });
-
-      // Realtime 연결 재시작 (필요한 경우)
-      // 현재는 Supabase가 자동으로 처리하므로 추가 작업 불필요
+      supabase.auth
+        .refreshSession()
+        .then(({ data: { session }, error }) => {
+          if (error) {
+            console.warn("Session refresh on visibility change:", error.message);
+          } else if (session) {
+            console.log("Session refreshed successfully");
+          }
+        });
     }
   });
 }
