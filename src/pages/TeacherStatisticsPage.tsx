@@ -63,6 +63,13 @@ interface MissionCompletionDetail {
   completed_at: string | null;
 }
 
+interface StudentMissionDetail {
+  mission_id: string;
+  mission_title: string;
+  completed: boolean;
+  completed_at: string | null;
+}
+
 const TeacherStatisticsPage: React.FC = () => {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
@@ -87,6 +94,13 @@ const TeacherStatisticsPage: React.FC = () => {
     MissionCompletionDetail[]
   >([]);
   const [loadingMissionDetail, setLoadingMissionDetail] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentStats | null>(
+    null
+  );
+  const [studentMissionDetails, setStudentMissionDetails] = useState<
+    StudentMissionDetail[]
+  >([]);
+  const [loadingStudentDetail, setLoadingStudentDetail] = useState(false);
 
   // 미션이 있는지 체크
   useEffect(() => {
@@ -393,6 +407,9 @@ const TeacherStatisticsPage: React.FC = () => {
 
       details.sort((a, b) => {
         if (a.completed !== b.completed) return a.completed ? -1 : 1;
+        if (a.completed && b.completed && a.completed_at && b.completed_at) {
+          return a.completed_at.localeCompare(b.completed_at);
+        }
         return a.student_name.localeCompare(b.student_name, "ko");
       });
 
@@ -401,6 +418,53 @@ const TeacherStatisticsPage: React.FC = () => {
       console.error("Error fetching mission completion details:", error);
     } finally {
       setLoadingMissionDetail(false);
+    }
+  };
+
+  const handleStudentClick = async (student: StudentStats) => {
+    setSelectedStudent(student);
+    setLoadingStudentDetail(true);
+    setStudentMissionDetails([]);
+
+    try {
+      const todayStart = DateTime.now().startOf("day").toISO();
+
+      const { data: missions } = await supabase
+        .from("missions")
+        .select("id, title")
+        .eq("school_id", userProfile!.school_id)
+        .eq("is_active", true)
+        .order("order_index", { ascending: true });
+
+      if (!missions || missions.length === 0) {
+        setStudentMissionDetails([]);
+        setLoadingStudentDetail(false);
+        return;
+      }
+
+      const { data: logs } = await supabase
+        .from("mission_logs")
+        .select("mission_id, completed_at")
+        .eq("student_id", student.student_id)
+        .gte("completed_at", todayStart);
+
+      const logMap = new Map<string, string>();
+      logs?.forEach((log) => {
+        logMap.set(log.mission_id, log.completed_at);
+      });
+
+      const details: StudentMissionDetail[] = missions.map((mission) => ({
+        mission_id: mission.id,
+        mission_title: mission.title,
+        completed: logMap.has(mission.id),
+        completed_at: logMap.get(mission.id) || null,
+      }));
+
+      setStudentMissionDetails(details);
+    } catch (error) {
+      console.error("Error fetching student mission details:", error);
+    } finally {
+      setLoadingStudentDetail(false);
     }
   };
 
@@ -521,9 +585,13 @@ const TeacherStatisticsPage: React.FC = () => {
                         <span className="text-sm font-bold text-gray-400 w-6 text-right shrink-0">
                           {index + 1}
                         </span>
-                        <span className="font-medium w-20 truncate shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleStudentClick(student)}
+                          className="font-medium w-20 truncate shrink-0 text-left hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                        >
                           {student.student_name}
-                        </span>
+                        </button>
                         <div className="flex-1 flex items-center gap-3 min-w-0">
                           <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
                             <div
@@ -654,9 +722,104 @@ const TeacherStatisticsPage: React.FC = () => {
               </div>
 
               <div className="max-h-[360px] overflow-y-auto space-y-1">
-                {missionCompletionDetails.map((detail) => (
+                {(() => {
+                  let completedRank = 0;
+                  return missionCompletionDetails.map((detail) => {
+                    if (detail.completed) completedRank++;
+                    const rank = detail.completed ? completedRank : null;
+
+                    return (
+                      <div
+                        key={detail.student_id}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-lg ${
+                          detail.completed ? "bg-emerald-50" : "bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {detail.completed ? (
+                            <span className="text-xs font-bold text-emerald-600 w-5 text-center shrink-0">
+                              {rank}
+                            </span>
+                          ) : (
+                            <XCircle className="h-5 w-5 text-gray-300 shrink-0" />
+                          )}
+                          <span
+                            className={`font-medium ${detail.completed ? "text-gray-900" : "text-gray-400"}`}
+                          >
+                            {detail.student_name}
+                          </span>
+                        </div>
+                        {detail.completed && detail.completed_at && (
+                          <div className="flex items-center gap-1 text-xs text-gray-400">
+                            <Clock className="h-3 w-3" />
+                            {DateTime.fromISO(detail.completed_at).toFormat(
+                              "HH:mm"
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedMission(null)}
+            >
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 학생 미션 달성 현황 다이얼로그 */}
+      <Dialog
+        open={!!selectedStudent}
+        onOpenChange={(open) => {
+          if (!open) setSelectedStudent(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              {selectedStudent?.student_name}
+            </DialogTitle>
+            <DialogDescription>오늘의 미션 달성 현황</DialogDescription>
+          </DialogHeader>
+
+          {loadingStudentDetail ? (
+            <div className="flex justify-center py-8">
+              <div
+                className="animate-spin rounded-full h-8 w-8 border-b-2"
+                style={{ borderColor: "var(--color-primary-medium)" }}
+              />
+            </div>
+          ) : studentMissionDetails.length === 0 ? (
+            <p className="text-center text-gray-500 py-6">
+              설정된 미션이 없습니다.
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center gap-4 px-1 mb-1">
+                <div className="flex items-center gap-1.5 text-sm text-emerald-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="font-medium">
+                    달성{" "}
+                    {studentMissionDetails.filter((d) => d.completed).length}/
+                    {studentMissionDetails.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="max-h-[360px] overflow-y-auto space-y-1">
+                {studentMissionDetails.map((detail) => (
                   <div
-                    key={detail.student_id}
+                    key={detail.mission_id}
                     className={`flex items-center justify-between px-3 py-2.5 rounded-lg ${
                       detail.completed ? "bg-emerald-50" : "bg-gray-50"
                     }`}
@@ -670,7 +833,7 @@ const TeacherStatisticsPage: React.FC = () => {
                       <span
                         className={`font-medium ${detail.completed ? "text-gray-900" : "text-gray-400"}`}
                       >
-                        {detail.student_name}
+                        {detail.mission_title}
                       </span>
                     </div>
                     {detail.completed && detail.completed_at && (
@@ -690,7 +853,7 @@ const TeacherStatisticsPage: React.FC = () => {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setSelectedMission(null)}
+              onClick={() => setSelectedStudent(null)}
             >
               닫기
             </Button>
