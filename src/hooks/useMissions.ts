@@ -205,6 +205,45 @@ export const useMissions = () => {
     }
   };
 
+  const swapMissionOrder = async (
+    idA: string,
+    newOrderA: number,
+    idB: string,
+    newOrderB: number
+  ) => {
+    if (!userProfile || !isTeacher) return;
+    try {
+      const [resultA, resultB] = await Promise.all([
+        supabase
+          .from("missions")
+          .update({ order_index: newOrderA })
+          .eq("id", idA)
+          .eq("school_id", userProfile.school_id),
+        supabase
+          .from("missions")
+          .update({ order_index: newOrderB })
+          .eq("id", idB)
+          .eq("school_id", userProfile.school_id),
+      ]);
+
+      if (resultA.error) throw resultA.error;
+      if (resultB.error) throw resultB.error;
+
+      setMissions((prev) =>
+        prev
+          .map((m) => {
+            if (m.id === idA) return { ...m, order: newOrderA };
+            if (m.id === idB) return { ...m, order: newOrderB };
+            return m;
+          })
+          .sort((a, b) => a.order - b.order)
+      );
+    } catch (err: unknown) {
+      console.error("Error swapping mission order:", err);
+      setError("미션 순서 변경 중 오류가 발생했습니다.");
+    }
+  };
+
   const deleteMission = async (id: string) => {
     if (!userProfile || !isTeacher) return;
     try {
@@ -230,6 +269,7 @@ export const useMissions = () => {
     addMission,
     updateMission,
     deleteMission,
+    swapMissionOrder,
     setMissions,
   };
 };

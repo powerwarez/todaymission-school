@@ -30,8 +30,15 @@ import { RainbowButton } from "../components/magicui/rainbow-button";
 const MissionSettingsPage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
-  const { missions, loading, error, addMission, deleteMission, updateMission } =
-    useMissions();
+  const {
+    missions,
+    loading,
+    error,
+    addMission,
+    deleteMission,
+    updateMission,
+    swapMissionOrder,
+  } = useMissions();
   const [newMissionContent, setNewMissionContent] = useState("");
 
   // PIN 인증 관련 상태
@@ -128,33 +135,29 @@ const MissionSettingsPage: React.FC = () => {
   // 미션 순서 위로 이동
   const handleMoveUp = async (mission: Mission) => {
     const index = missions.findIndex((m) => m.id === mission.id);
-    if (index <= 0) return; // 이미 첫 번째 항목이면 이동 불가
+    if (index <= 0) return;
 
     const prevMission = missions[index - 1];
-
-    // 순서 교환
-    await updateMission(mission.id, {
-      order: prevMission.order,
-    });
-    await updateMission(prevMission.id, {
-      order: mission.order,
-    });
+    await swapMissionOrder(
+      mission.id,
+      index - 1,
+      prevMission.id,
+      index
+    );
   };
 
   // 미션 순서 아래로 이동
   const handleMoveDown = async (mission: Mission) => {
     const index = missions.findIndex((m) => m.id === mission.id);
-    if (index >= missions.length - 1) return; // 이미 마지막 항목이면 이동 불가
+    if (index >= missions.length - 1) return;
 
     const nextMission = missions[index + 1];
-
-    // 순서 교환
-    await updateMission(mission.id, {
-      order: nextMission.order,
-    });
-    await updateMission(nextMission.id, {
-      order: mission.order,
-    });
+    await swapMissionOrder(
+      mission.id,
+      index + 1,
+      nextMission.id,
+      index
+    );
   };
 
   if (!user) {
