@@ -18,6 +18,9 @@ import {
 import { UserPlus, Loader2 } from "lucide-react";
 import { StudentCreationResult } from "../types/index";
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 interface CreateStudentsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,21 +76,40 @@ const CreateStudentsModal: React.FC<
         qr_token: generateQrToken(),
       }));
 
-      const { data, error: rpcError } = await supabase.rpc(
-        "create_batch_students",
+      const session = await supabase.auth.getSession();
+      const accessToken =
+        session.data.session?.access_token || SUPABASE_ANON_KEY;
+
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/rpc/create_batch_students`,
         {
-          p_teacher_id: teacherId,
-          p_school_id: schoolId,
-          p_students: studentsData,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            p_teacher_id: teacherId,
+            p_school_id: schoolId,
+            p_students: studentsData,
+          }),
         }
       );
 
-      if (rpcError) {
-        console.error("RPC error:", rpcError);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(
+          "RPC fetch error:",
+          response.status,
+          errorBody
+        );
         throw new Error(
-          `학생 계정 생성 실패: ${rpcError.message}`
+          `학생 계정 생성 실패 (${response.status}): ${errorBody}`
         );
       }
+
+      const data = await response.json();
 
       const results: StudentCreationResult[] = (
         data as Array<{
