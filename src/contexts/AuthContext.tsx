@@ -3,6 +3,7 @@ import React, {
   useState,
   useEffect,
   useContext,
+  useRef,
   ReactNode,
 } from "react";
 import { Session, User, AuthChangeEvent } from "@supabase/supabase-js";
@@ -154,6 +155,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // initAuth에서 프로필을 이미 fetch한 user.id를 추적
+  const profileFetchedForRef = useRef<string | null>(null);
+
   useEffect(() => {
     let authListener: {
       subscription: { unsubscribe: () => void };
@@ -195,42 +199,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const profile = await fetchUserProfile(session.user);
           if (profile) {
             setUserProfile(profile);
+            profileFetchedForRef.current = session.user.id;
           }
         }
 
         setLoading(false);
 
-        // Setup auth state listener
+        // onAuthStateChange 콜백은 반드시 동기적이어야 한다.
+        // refreshSession()의 내부 락이 점유된 상태에서 이 콜백이 실행되므로,
+        // 여기서 DB 쿼리를 하면 getSession() 재호출로 데드락이 발생한다.
+        // 프로필 fetch는 별도 useEffect에서 user.id 변경 시에만 실행한다.
         const { data } = supabase.auth.onAuthStateChange(
-          async (_event: AuthChangeEvent, session: Session | null) => {
+          (_event: AuthChangeEvent, session: Session | null) => {
             console.log("Auth state changed:", _event);
-            console.log("Session:", session?.user?.id);
 
-            if (_event === "TOKEN_REFRESHED" && session) {
-              // 토큰 갱신은 세션만 갱신하고 프로필은 변경되지 않는다.
-              // 이 콜백은 refreshSession()의 내부 락이 점유된 상태에서 실행되므로,
-              // 여기서 DB 쿼리(fetchUserProfile)를 하면 getSession() 재호출로 데드락이 발생한다.
-              setSession(session);
-              setUser(session.user);
-              return;
-            }
-
-            if (_event !== "SIGNED_OUT" && session) {
-              setSession(session);
-              setUser(session.user);
-              const profile = await fetchUserProfile(session.user);
-              if (profile) {
-                setUserProfile(profile);
-              } else if (_event === "USER_UPDATED") {
-                console.log("User updated without profile");
-              } else {
-                setUserProfile(null);
-              }
-            } else if (_event === "SIGNED_OUT") {
-              console.log("User signed out, clearing state");
+            if (_event === "SIGNED_OUT" || !session) {
               setSession(null);
               setUser(null);
               setUserProfile(null);
+              profileFetchedForRef.current = null;
+            } else {
+              setSession(session);
+              setUser(session.user);
             }
           }
         );
@@ -251,33 +241,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // 페이지가 다시 보일 때 세션 갱신 완료를 기다린 후 프로필 새로고침
+  // user.id가 변경될 때만 프로필을 fetch (OAuth 로그인 리다이렉트 등)
+  useEffect(() => {
+    if (!user) return;
+    if (profileFetchedForRef.current === user.id) return;
+
+    profileFetchedForRef.current = user.id;
+    fetchUserProfile(user).then((profile) => {
+      if (profile) {
+        setUserProfile(profile);
+      }
+    });
+  }, [user?.id]);
+
+  // 탭 복귀 시 세션 갱신을 기다린 후 프로필 새로고침
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.hidden) return;
 
       await waitForSession();
 
-      try {
-        const {
-          data: { session: currentSession },
-        } = await supabase.auth.getSession();
-
-        if (currentSession) {
-          console.log("Page visible: Refreshing auth state");
-          setSession(currentSession);
-          setUser(currentSession.user);
-
-          const profile = await fetchUserProfile(currentSession.user);
-          if (profile) {
-            setUserProfile(profile);
-          }
-        } else if (
-          userProfile &&
-          userProfile.role === "student" &&
-          userProfile.qr_token
-        ) {
-          console.log("Page visible: Refreshing student profile");
+      if (
+        userProfile &&
+        userProfile.role === "student" &&
+        userProfile.qr_token
+      ) {
+        try {
           const { data: refreshedProfile } = await supabase
             .from("users")
             .select("*")
@@ -287,9 +276,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (refreshedProfile) {
             setUserProfile(refreshedProfile as UserProfile);
           }
+        } catch (error) {
+          console.error("Error refreshing student profile:", error);
         }
-      } catch (error) {
-        console.error("Error refreshing auth state on page visible:", error);
       }
     };
 
