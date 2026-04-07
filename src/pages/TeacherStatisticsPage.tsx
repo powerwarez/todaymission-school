@@ -27,7 +27,17 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
-import { TrendingUp, Users, Award, Target, AlertCircle } from "lucide-react";
+import {
+  TrendingUp,
+  Users,
+  Award,
+  Target,
+  AlertCircle,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  Clock,
+} from "lucide-react";
 import { DateTime } from "luxon";
 
 interface StudentStats {
@@ -46,6 +56,13 @@ interface MissionStats {
   completion_rate: number;
 }
 
+interface MissionCompletionDetail {
+  student_id: string;
+  student_name: string;
+  completed: boolean;
+  completed_at: string | null;
+}
+
 const TeacherStatisticsPage: React.FC = () => {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
@@ -60,6 +77,16 @@ const TeacherStatisticsPage: React.FC = () => {
     totalBadgesEarned: 0,
   });
   const [showNoMissionDialog, setShowNoMissionDialog] = useState(false);
+  const [studentsCache, setStudentsCache] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [selectedMission, setSelectedMission] = useState<MissionStats | null>(
+    null
+  );
+  const [missionCompletionDetails, setMissionCompletionDetails] = useState<
+    MissionCompletionDetail[]
+  >([]);
+  const [loadingMissionDetail, setLoadingMissionDetail] = useState(false);
 
   // 미션이 있는지 체크
   useEffect(() => {
@@ -146,6 +173,7 @@ const TeacherStatisticsPage: React.FC = () => {
         .eq("role", "student");
 
       if (!students || students.length === 0) {
+        setStudentsCache([]);
         setOverallStats({
           totalStudents: 0,
           averageCompletionRate: 0,
@@ -157,6 +185,8 @@ const TeacherStatisticsPage: React.FC = () => {
         setLoading(false);
         return;
       }
+
+      setStudentsCache(students);
 
       // Fetch missions
       const { data: missions } = await supabase
@@ -301,6 +331,55 @@ const TeacherStatisticsPage: React.FC = () => {
       console.error("Error fetching statistics:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMissionClick = async (mission: MissionStats) => {
+    setSelectedMission(mission);
+    setLoadingMissionDetail(true);
+    setMissionCompletionDetails([]);
+
+    try {
+      const todayStart = DateTime.now().startOf("day").toISO();
+      const studentIds = studentsCache.map((s) => s.id);
+
+      if (studentIds.length === 0) {
+        setMissionCompletionDetails([]);
+        setLoadingMissionDetail(false);
+        return;
+      }
+
+      const { data: logs } = await supabase
+        .from("mission_logs")
+        .select("student_id, completed_at")
+        .eq("mission_id", mission.mission_id)
+        .in("student_id", studentIds)
+        .gte("completed_at", todayStart);
+
+      const completedMap = new Map<string, string>();
+      logs?.forEach((log) => {
+        completedMap.set(log.student_id, log.completed_at);
+      });
+
+      const details: MissionCompletionDetail[] = studentsCache.map(
+        (student) => ({
+          student_id: student.id,
+          student_name: student.name,
+          completed: completedMap.has(student.id),
+          completed_at: completedMap.get(student.id) || null,
+        })
+      );
+
+      details.sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? -1 : 1;
+        return a.student_name.localeCompare(b.student_name, "ko");
+      });
+
+      setMissionCompletionDetails(details);
+    } catch (error) {
+      console.error("Error fetching mission completion details:", error);
+    } finally {
+      setLoadingMissionDetail(false);
     }
   };
 
@@ -454,7 +533,9 @@ const TeacherStatisticsPage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>미션별 통계</CardTitle>
-            <CardDescription>각 미션의 수행 현황</CardDescription>
+            <CardDescription>
+              각 미션의 수행 현황 (클릭하면 오늘의 달성 현황을 확인할 수 있습니다)
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {missionStats.length === 0 ? (
@@ -462,14 +543,20 @@ const TeacherStatisticsPage: React.FC = () => {
                 아직 설정된 미션이 없습니다.
               </p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {missionStats.map((mission) => (
-                  <div
+                  <button
                     key={mission.mission_id}
-                    className="flex items-center justify-between"
+                    type="button"
+                    onClick={() => handleMissionClick(mission)}
+                    className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors text-left cursor-pointer"
                   >
-                    <span className="font-medium">{mission.mission_title}</span>
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium truncate">
+                        {mission.mission_title}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
                       <span className="text-sm text-gray-500">
                         {mission.total_attempts}회 수행
                       </span>
@@ -482,14 +569,113 @@ const TeacherStatisticsPage: React.FC = () => {
                       >
                         {mission.completion_rate}%
                       </Badge>
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* 미션 달성 현황 다이얼로그 */}
+      <Dialog
+        open={!!selectedMission}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMission(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-purple-600" />
+              {selectedMission?.mission_title}
+            </DialogTitle>
+            <DialogDescription>오늘의 달성 현황</DialogDescription>
+          </DialogHeader>
+
+          {loadingMissionDetail ? (
+            <div className="flex justify-center py-8">
+              <div
+                className="animate-spin rounded-full h-8 w-8 border-b-2"
+                style={{ borderColor: "var(--color-primary-medium)" }}
+              />
+            </div>
+          ) : missionCompletionDetails.length === 0 ? (
+            <p className="text-center text-gray-500 py-6">
+              등록된 학생이 없습니다.
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center gap-4 px-1 mb-1">
+                <div className="flex items-center gap-1.5 text-sm text-emerald-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="font-medium">
+                    달성{" "}
+                    {
+                      missionCompletionDetails.filter((d) => d.completed).length
+                    }
+                    명
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                  <XCircle className="h-4 w-4" />
+                  <span className="font-medium">
+                    미달성{" "}
+                    {
+                      missionCompletionDetails.filter((d) => !d.completed)
+                        .length
+                    }
+                    명
+                  </span>
+                </div>
+              </div>
+
+              <div className="max-h-[360px] overflow-y-auto space-y-1">
+                {missionCompletionDetails.map((detail) => (
+                  <div
+                    key={detail.student_id}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg ${
+                      detail.completed ? "bg-emerald-50" : "bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {detail.completed ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-gray-300 shrink-0" />
+                      )}
+                      <span
+                        className={`font-medium ${detail.completed ? "text-gray-900" : "text-gray-400"}`}
+                      >
+                        {detail.student_name}
+                      </span>
+                    </div>
+                    {detail.completed && detail.completed_at && (
+                      <div className="flex items-center gap-1 text-xs text-gray-400">
+                        <Clock className="h-3 w-3" />
+                        {DateTime.fromISO(detail.completed_at).toFormat(
+                          "HH:mm"
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedMission(null)}
+            >
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 미션이 없을 때 표시되는 다이얼로그 */}
       <Dialog open={showNoMissionDialog} onOpenChange={setShowNoMissionDialog}>
