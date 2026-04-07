@@ -296,13 +296,28 @@ const TeacherStudentsPage: React.FC = () => {
 
     setIsDeleting(true);
     try {
-      // 학생 관련 모든 데이터 삭제 (CASCADE로 자동 삭제되지만 명시적으로 처리)
-      const { error } = await supabase
-        .from("users")
-        .delete()
-        .eq("id", studentToDelete.id);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      if (error) throw error;
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/delete_student`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({
+            p_student_id: studentToDelete.id,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(errorBody);
+      }
 
       toast.success(
         `${studentToDelete.name} 학생의 계정이 삭제되었습니다.`
