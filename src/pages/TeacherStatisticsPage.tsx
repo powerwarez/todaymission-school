@@ -130,6 +130,20 @@ const TeacherStatisticsPage: React.FC = () => {
     }
   }, [userProfile, selectedPeriod]);
 
+  // 탭 복귀 시 통계 데이터 새로고침
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && userProfile?.id) {
+        fetchStatistics();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [userProfile, selectedPeriod]);
+
   const fetchStatistics = async () => {
     console.log("fetchStatistics - Starting with:", {
       userId: userProfile?.id,
