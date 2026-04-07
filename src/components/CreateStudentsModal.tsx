@@ -26,6 +26,9 @@ interface CreateStudentsModalProps {
   onSuccess?: (students: StudentCreationResult[]) => void;
 }
 
+const generateQrToken = () =>
+  `${Date.now()}-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`;
+
 const CreateStudentsModal: React.FC<
   CreateStudentsModalProps
 > = ({
@@ -37,24 +40,14 @@ const CreateStudentsModal: React.FC<
 }) => {
   const [studentNames, setStudentNames] = useState("");
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const handleCreate = async () => {
-    // 디버깅: props 값 확인
-    console.log("CreateStudentsModal - Props:", {
-      teacherId,
-      schoolId,
-    });
-
-    // 필수 값 검증
     if (!teacherId || !schoolId) {
       setError(
         "선생님 ID 또는 학교 ID가 없습니다. 페이지를 새로고침해주세요."
       );
-      console.error("Missing required IDs:", {
-        teacherId,
-        schoolId,
-      });
       return;
     }
 
@@ -70,123 +63,87 @@ const CreateStudentsModal: React.FC<
 
     setLoading(true);
     setError(null);
+    setProgress(`${names.length}명의 학생 계정 생성 중...`);
 
     try {
-      const createdStudents: StudentCreationResult[] = [];
-      const errors: string[] = [];
+      const studentsToInsert = names.map((name) => ({
+        name,
+        role: "student" as const,
+        school_id: schoolId,
+        teacher_id: teacherId,
+        auth_provider: "qr" as const,
+        qr_token: generateQrToken(),
+      }));
 
-      // 각 학생별로 계정 생성
-      for (const studentName of names) {
-        try {
-          // QR 토큰 생성 (UUID 대체 방법)
-          const qrToken = `${Date.now()}-${Math.random()
-            .toString(36)
-            .substring(2, 15)}-${Math.random()
-            .toString(36)
-            .substring(2, 15)}`;
+      setProgress("학생 계정 일괄 생성 중...");
 
-          // 학생 계정 생성
-          const { data: studentData, error: studentError } =
-            await supabase
-              .from("users")
-              .insert({
-                name: studentName,
-                role: "student",
-                school_id: schoolId,
-                teacher_id: teacherId,
-                auth_provider: "qr",
-                qr_token: qrToken,
-              })
-              .select()
-              .single();
+      const { data: insertedStudents, error: insertError } =
+        await supabase
+          .from("users")
+          .insert(studentsToInsert)
+          .select("id, name, qr_token");
 
-          if (studentError) {
-            console.error(
-              `Error creating student ${studentName}:`,
-              studentError
-            );
-            errors.push(
-              `${studentName}: ${studentError.message}`
-            );
-            continue; // 하나 실패해도 나머지는 계속 생성
-          }
-
-          if (!studentData) {
-            errors.push(`${studentName}: 데이터 생성 실패`);
-            continue;
-          }
-
-          // QR 코드 데이터 생성
-          const qrData = JSON.stringify({
-            token: qrToken,
-            student_name: studentName,
-            school_id: schoolId,
-          });
-
-          const { error: qrError } = await supabase
-            .from("student_qr_codes")
-            .insert({
-              student_id: studentData.id,
-              qr_data: qrData,
-            });
-
-          if (qrError) {
-            console.error(
-              `Error creating QR code for ${studentName}:`,
-              qrError
-            );
-            errors.push(
-              `${studentName} QR 코드: ${qrError.message}`
-            );
-          }
-
-          createdStudents.push({
-            student_id: studentData.id,
-            student_name: studentName,
-            qr_token: qrToken,
-          });
-        } catch (err) {
-          console.error(
-            `Unexpected error for ${studentName}:`,
-            err
-          );
-          errors.push(
-            `${studentName}: 예상치 못한 오류 발생`
-          );
-        }
-      }
-
-      if (errors.length > 0) {
-        setError(
-          `일부 학생 계정 생성 실패:\n${errors.join("\n")}`
+      if (insertError) {
+        console.error("Batch insert error:", insertError);
+        throw new Error(
+          `학생 계정 생성 실패: ${insertError.message}`
         );
       }
 
-      if (createdStudents.length === 0) {
-        throw new Error("학생 계정을 생성하지 못했습니다.");
+      if (
+        !insertedStudents ||
+        insertedStudents.length === 0
+      ) {
+        throw new Error(
+          "학생 계정이 생성되지 않았습니다. 다시 시도해주세요."
+        );
       }
 
-      // Success
+      setProgress(
+        `${insertedStudents.length}명 생성 완료. QR 코드 데이터 저장 중...`
+      );
+
+      const qrCodesData = insertedStudents.map(
+        (student) => ({
+          student_id: student.id,
+          qr_data: JSON.stringify({
+            token: student.qr_token,
+            student_name: student.name,
+            school_id: schoolId,
+          }),
+        })
+      );
+
+      const { error: qrError } = await supabase
+        .from("student_qr_codes")
+        .insert(qrCodesData);
+
+      if (qrError) {
+        console.error("QR codes batch insert error:", qrError);
+      }
+
+      const createdStudents: StudentCreationResult[] =
+        insertedStudents.map((student) => ({
+          student_id: student.id,
+          student_name: student.name,
+          qr_token: student.qr_token,
+        }));
+
       if (onSuccess) {
         onSuccess(createdStudents);
       }
 
-      // Reset form only if some students were created successfully
-      if (createdStudents.length > 0) {
-        setStudentNames("");
-        if (errors.length === 0) {
-          onOpenChange(false);
-        }
-      }
+      setStudentNames("");
+      setProgress("");
+      onOpenChange(false);
     } catch (err) {
       console.error("Error creating students:", err);
       setError(
-        `학생 계정 생성 중 오류가 발생했습니다: ${
-          err instanceof Error
-            ? err.message
-            : "알 수 없는 오류"
-        }`
+        err instanceof Error
+          ? err.message
+          : "학생 계정 생성 중 오류가 발생했습니다."
       );
+      setProgress("");
     } finally {
       setLoading(false);
     }
@@ -196,9 +153,15 @@ const CreateStudentsModal: React.FC<
     if (!loading) {
       setStudentNames("");
       setError(null);
+      setProgress("");
       onOpenChange(false);
     }
   };
+
+  const studentCount = studentNames
+    .split("\n")
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0).length;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -214,6 +177,11 @@ const CreateStudentsModal: React.FC<
           <div>
             <Label htmlFor="studentNames">
               학생 이름 목록
+              {studentCount > 0 && (
+                <span className="ml-2 text-xs font-normal text-gray-500">
+                  ({studentCount}명)
+                </span>
+              )}
             </Label>
             <Textarea
               id="studentNames"
@@ -230,6 +198,17 @@ const CreateStudentsModal: React.FC<
               각 줄에 학생 이름 하나씩 입력하세요.
             </p>
           </div>
+
+          {progress && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                <p className="text-sm text-blue-700">
+                  {progress}
+                </p>
+              </div>
+            </div>
+          )}
 
           {error && (
             <Alert variant="destructive">
@@ -261,6 +240,7 @@ const CreateStudentsModal: React.FC<
               <>
                 <UserPlus className="mr-2 h-4 w-4" />
                 계정 생성
+                {studentCount > 0 && ` (${studentCount}명)`}
               </>
             )}
           </Button>
