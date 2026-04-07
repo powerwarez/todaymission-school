@@ -71,14 +71,14 @@ const CreateStudentsModal: React.FC<
     );
 
     try {
+      console.log("[CreateStudents] 1. 학생 데이터 준비 시작");
       const studentsData = names.map((name) => ({
         name,
         qr_token: generateQrToken(),
       }));
+      console.log("[CreateStudents] 2. 학생 데이터 준비 완료:", studentsData.length, "명");
 
-      const session = await supabase.auth.getSession();
-      const accessToken =
-        session.data.session?.access_token || SUPABASE_ANON_KEY;
+      console.log("[CreateStudents] 3. fetch 호출 시작 - URL:", `${SUPABASE_URL}/rest/v1/rpc/create_batch_students`);
 
       const response = await fetch(
         `${SUPABASE_URL}/rest/v1/rpc/create_batch_students`,
@@ -87,7 +87,8 @@ const CreateStudentsModal: React.FC<
           headers: {
             "Content-Type": "application/json",
             apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Prefer: "return=representation",
           },
           body: JSON.stringify({
             p_teacher_id: teacherId,
@@ -97,10 +98,12 @@ const CreateStudentsModal: React.FC<
         }
       );
 
+      console.log("[CreateStudents] 4. fetch 응답 수신:", response.status, response.statusText);
+
       if (!response.ok) {
         const errorBody = await response.text();
         console.error(
-          "RPC fetch error:",
+          "[CreateStudents] 5. 에러 응답:",
           response.status,
           errorBody
         );
@@ -110,6 +113,7 @@ const CreateStudentsModal: React.FC<
       }
 
       const data = await response.json();
+      console.log("[CreateStudents] 5. 응답 데이터:", data);
 
       const results: StudentCreationResult[] = (
         data as Array<{
