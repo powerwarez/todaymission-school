@@ -17,6 +17,7 @@ import {
   StudentBadgeRow,
   StudentListItem,
 } from "../components/badges/types";
+import type { NewBadgeData } from "../components/badges/CreateBadgeModal";
 
 function BadgeSettingsPage() {
   const { userProfile } = useAuth();
@@ -129,7 +130,14 @@ function BadgeSettingsPage() {
             .order("created_at", { ascending: false });
 
         if (!missionError && missionData) {
-          setMissions(missionData as Mission[]);
+          const transformedMissions = missionData.map(
+            (m: any) => ({
+              id: m.id,
+              content: m.title || m.content || "",
+              created_at: m.created_at,
+            })
+          );
+          setMissions(transformedMissions as Mission[]);
         }
       } catch (err: unknown) {
         console.error("데이터 로드 중 오류:", err);
@@ -147,7 +155,7 @@ function BadgeSettingsPage() {
   }, [userProfile]);
 
   // 배지 생성 핸들러
-  const handleCreateBadge = async (newBadge: any) => {
+  const handleCreateBadge = async (newBadge: NewBadgeData) => {
     if (!userProfile) {
       toast.error("사용자 정보를 찾을 수 없습니다.");
       return;
@@ -250,24 +258,34 @@ function BadgeSettingsPage() {
         }
       }
 
-      // 배지 생성
+      // 배지 생성 - 조건 유형에 따라 데이터 구성
+      const conditionType = newBadge.conditionType;
+      const isSpecificMission =
+        conditionType === "specific_mission";
+
+      const badgeInsertData = {
+        name: newBadge.name,
+        description: newBadge.description,
+        icon: finalImagePath,
+        teacher_id: userProfile.id,
+        school_id: userProfile.school_id,
+        mission_id: isSpecificMission
+          ? newBadge.mission_id
+          : null,
+        target_count: newBadge.targetCount,
+        is_active: true,
+        criteria: {
+          condition_type: conditionType,
+          ...(isSpecificMission && {
+            mission_id: newBadge.mission_id,
+          }),
+          target_count: newBadge.targetCount,
+        },
+      };
+
       const { data, error: insertError } = await supabase
         .from("badges")
-        .insert([
-          {
-            name: newBadge.name,
-            description: newBadge.description,
-            icon: finalImagePath,
-            teacher_id: userProfile.id,
-            school_id: userProfile.school_id,
-            mission_id:
-              newBadge.mission_id === "weekly_streak_1"
-                ? null
-                : newBadge.mission_id,
-            target_count: newBadge.targetCount,
-            is_active: true,
-          },
-        ])
+        .insert([badgeInsertData])
         .select()
         .single();
 
@@ -444,7 +462,7 @@ function BadgeSettingsPage() {
               (e.currentTarget.style.backgroundColor =
                 "var(--color-primary-medium)")
             }>
-            <LuPlus className="mr-2" size={20} />새 배지
+            <LuPlus className="mr-2" size={20} />새 도전과제
             만들기
           </button>
         </div>
@@ -478,13 +496,13 @@ function BadgeSettingsPage() {
               style={{
                 color: "var(--color-text-primary)",
               }}>
-              달성 가능한 배지 목록
+              달성 가능한 도전과제 목록
             </h2>
 
             {badges.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                아직 생성된 배지가 없습니다. "새 배지
-                만들기" 버튼을 눌러 첫 번째 배지를
+                아직 생성된 도전과제가 없습니다. "새 도전과제
+                만들기" 버튼을 눌러 첫 번째 도전과제를
                 만들어보세요!
               </div>
             ) : (

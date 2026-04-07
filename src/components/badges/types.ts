@@ -1,4 +1,14 @@
-// Badge 관련 타입 정의
+export type BadgeConditionType =
+  | "daily_any"
+  | "specific_mission"
+  | "weekly_complete";
+
+export interface BadgeCriteria {
+  condition_type?: BadgeConditionType;
+  mission_id?: string;
+  target_count?: number;
+}
+
 export interface BadgeType {
   id: string;
   name: string;
@@ -9,6 +19,7 @@ export interface BadgeType {
   mission_id: string | null;
   target_count: number;
   is_active: boolean;
+  criteria?: BadgeCriteria;
   created_at?: string;
 }
 

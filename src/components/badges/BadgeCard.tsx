@@ -44,7 +44,19 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
             {badge.description}
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            목표: {badge.target_count}회 달성
+            {badge.criteria?.condition_type === "daily_any" &&
+              "오늘의 미션"}
+            {badge.criteria?.condition_type ===
+              "specific_mission" && "특정 미션"}
+            {badge.criteria?.condition_type ===
+              "weekly_complete" && "주간 미션"}
+            {!badge.criteria?.condition_type &&
+              badge.mission_id &&
+              "특정 미션"}
+            {!badge.criteria?.condition_type &&
+              !badge.mission_id &&
+              "시스템 배지"}
+            {" · "}목표: {badge.target_count}회 달성
           </p>
         </div>
 

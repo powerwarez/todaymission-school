@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../contexts/NotificationContext";
 import { MissionLog } from "../types";
 import toast from "react-hot-toast";
 import { DateTime } from "luxon";
-import { useOnPageVisible } from "./usePageVisibility";
 
 // 오디오 재생 함수
 const playSound = (soundFile: string) => {
@@ -228,11 +227,41 @@ export const useMissionLogs = (formattedDate: string) => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  // 페이지가 다시 보일 때 로그 새로고침
-  useOnPageVisible(() => {
-    console.log("[useMissionLogs] Page visible, refreshing logs");
-    fetchInitialData();
-  }, [fetchInitialData]);
+  // 페이지가 다시 보일 때 세션 갱신 후 로그 새로고침
+  const lastVisibleFetchRef = useRef<number>(0);
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleVisibilityChange = async () => {
+      if (document.hidden || !userProfile) return;
+
+      const now = Date.now();
+      if (now - lastVisibleFetchRef.current < 1000) return;
+      lastVisibleFetchRef.current = now;
+
+      console.log("[useMissionLogs] Page visible, refreshing logs");
+
+      if (userProfile.role === "student" && userProfile.qr_token) {
+        // QR 학생은 Supabase auth 세션이 없으므로 바로 fetch
+      } else {
+        try {
+          await supabase.auth.refreshSession();
+        } catch (e) {
+          console.warn("[useMissionLogs] Session refresh warning:", e);
+        }
+      }
+
+      if (!cancelled) {
+        fetchInitialData();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchInitialData, userProfile]);
 
   const addLog = async (missionId: string) => {
     if (!userProfile || !formattedDate) return null;
@@ -408,66 +437,87 @@ export const useMissionLogs = (formattedDate: string) => {
       console.log("[addLog] 커스텀 배지 체크 시작");
 
       try {
-        // 해당 미션에 대한 완료 횟수 조회
-        const { data: missionLogCount, error: countError } = await supabase
-          .from("mission_logs")
-          .select("id", { count: "exact" })
-          .eq("student_id", userProfile.id)
-          .eq("mission_id", missionId);
+        // 학생의 학교에 등록된 활성 배지 모두 조회
+        const { data: allBadges, error: badgeError } = await supabase
+          .from("badges")
+          .select("*")
+          .eq("school_id", userProfile.school_id)
+          .eq("is_active", true);
 
-        if (!countError && missionLogCount !== null) {
-          const completedCount = missionLogCount.length;
-          console.log(`미션 ${missionId} 완료 횟수: ${completedCount}`);
+        if (!badgeError && allBadges) {
+          for (const badge of allBadges) {
+            const conditionType =
+              badge.criteria?.condition_type || null;
+            const targetCount =
+              badge.criteria?.target_count || badge.target_count || 1;
 
-          // 해당 미션과 관련된 배지 조회
-          const { data: badges, error: badgeError } = await supabase
-            .from("badges")
-            .select("*")
-            .eq("type", "special")
-            .eq("is_active", true)
-            .contains("criteria", {
-              mission_id: missionId,
-            });
+            let completedCount = 0;
 
-          if (!badgeError && badges) {
-            for (const badge of badges) {
-              const targetCount = badge.criteria.target_count || 1;
+            if (
+              conditionType === "specific_mission" &&
+              badge.criteria?.mission_id
+            ) {
+              // 특정 미션 달성 횟수 체크
+              if (badge.criteria.mission_id !== missionId) continue;
+              const { data: logs } = await supabase
+                .from("mission_logs")
+                .select("id", { count: "exact" })
+                .eq("student_id", userProfile.id)
+                .eq("mission_id", missionId);
+              completedCount = logs?.length || 0;
+            } else if (conditionType === "daily_any") {
+              // 오늘의 미션 전체 달성 횟수 체크 (아무 미션이나)
+              const { data: logs } = await supabase
+                .from("mission_logs")
+                .select("id", { count: "exact" })
+                .eq("student_id", userProfile.id);
+              completedCount = logs?.length || 0;
+            } else if (conditionType === "weekly_complete") {
+              // 주간 미션 체크는 별도 로직으로 처리 (주간 완료 횟수)
+              // weekly_complete은 addLog에서 즉시 체크하기 어려우므로 skip
+              continue;
+            } else if (!conditionType && badge.mission_id) {
+              // 레거시: criteria 없이 mission_id만 있는 경우
+              if (badge.mission_id !== missionId) continue;
+              const { data: logs } = await supabase
+                .from("mission_logs")
+                .select("id", { count: "exact" })
+                .eq("student_id", userProfile.id)
+                .eq("mission_id", missionId);
+              completedCount = logs?.length || 0;
+            } else {
+              continue;
+            }
 
-              if (completedCount === targetCount) {
-                console.log(`배지 획득 조건 충족: ${badge.name}`);
+            console.log(
+              `배지 "${badge.name}" (${conditionType}): ${completedCount}/${targetCount}`
+            );
 
-                // 이미 획득했는지 확인
-                const { data: existingBadge } = await supabase
+            if (completedCount >= targetCount) {
+              // 이미 획득했는지 확인
+              const { data: existingBadge } = await supabase
+                .from("student_custom_badges")
+                .select("id")
+                .eq("student_id", userProfile.id)
+                .eq("badge_id", badge.id)
+                .single();
+
+              if (!existingBadge) {
+                const { error: insertError } = await supabase
                   .from("student_custom_badges")
-                  .select("id")
-                  .eq("student_id", userProfile.id)
-                  .eq("badge_id", badge.id)
-                  .single();
+                  .insert({
+                    student_id: userProfile.id,
+                    badge_id: badge.id,
+                    earned_date: formattedDate,
+                  });
 
-                if (!existingBadge) {
-                  // 배지 부여
-                  const { error: insertError } = await supabase
-                    .from("student_custom_badges")
-                    .insert({
-                      student_id: userProfile.id,
-                      badge_id: badge.id,
-                      earned_date: formattedDate,
-                    });
-
-                  if (!insertError) {
-                    console.log(`✅ 커스텀 배지 획득: ${badge.name}`);
-                    // Toast 알림 표시
-                    toast.success(
-                      `${badge.icon || "🏅"} ${
-                        badge.name
-                      } 배지를 획득했습니다!`,
-                      {
-                        duration: 4000,
-                        position: "top-center",
-                      }
-                    );
-                    showBadgeNotification(badge.id);
-                  }
+                if (!insertError) {
+                  console.log(`✅ 커스텀 배지 획득: ${badge.name}`);
+                  toast.success(
+                    `${badge.icon || "🏅"} ${badge.name} 배지를 획득했습니다!`,
+                    { duration: 4000, position: "top-center" }
+                  );
+                  showBadgeNotification(badge.id);
                 }
               }
             }

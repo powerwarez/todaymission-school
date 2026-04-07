@@ -258,6 +258,64 @@ export const useWeeklyCompletionStatus = () => {
               console.error("배지 저장 중 오류:", err);
             }
 
+            // weekly_complete 조건 커스텀 배지 체크
+            try {
+              const totalWeeklyCount = (existingSystemBadges?.length || 0) + 1;
+              const { data: weeklyBadges } = await supabase
+                .from("badges")
+                .select("*")
+                .eq("school_id", userProfile.school_id)
+                .eq("is_active", true);
+
+              if (weeklyBadges) {
+                for (const badge of weeklyBadges) {
+                  if (badge.criteria?.condition_type !== "weekly_complete") continue;
+                  const target = badge.criteria?.target_count || badge.target_count || 1;
+
+                  // 전체 주간 달성 횟수 조회
+                  const { data: allSystemBadges } = await supabase
+                    .from("student_system_badges")
+                    .select("id", { count: "exact" })
+                    .eq("student_id", userProfile.id)
+                    .eq("system_badge_id", "weekly_mission_complete");
+
+                  const weeklyCount = (allSystemBadges?.length || 0) + 1;
+
+                  if (weeklyCount >= target) {
+                    const { data: existing } = await supabase
+                      .from("student_custom_badges")
+                      .select("id")
+                      .eq("student_id", userProfile.id)
+                      .eq("badge_id", badge.id)
+                      .single();
+
+                    if (!existing) {
+                      const { error: badgeInsertErr } = await supabase
+                        .from("student_custom_badges")
+                        .insert({
+                          student_id: userProfile.id,
+                          badge_id: badge.id,
+                          earned_date: DateTime.fromJSDate(todayKST.toJSDate())
+                            .setZone("Asia/Seoul")
+                            .toFormat("yyyy-MM-dd"),
+                        });
+
+                      if (!badgeInsertErr) {
+                        console.log(`✅ 주간 커스텀 배지 획득: ${badge.name}`);
+                        toast.success(
+                          `${badge.icon || "🏅"} ${badge.name} 배지를 획득했습니다!`,
+                          { duration: 4000, position: "top-center" }
+                        );
+                        showBadgeNotification(badge.id);
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (weeklyBadgeErr) {
+              console.error("주간 커스텀 배지 체크 오류:", weeklyBadgeErr);
+            }
+
             setWeeklyStreakRewarded(true);
           }
         } catch (err) {

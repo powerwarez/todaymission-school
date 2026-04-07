@@ -1,16 +1,20 @@
 import React, { useState } from "react";
 import { LuX, LuUpload, LuSparkles } from "react-icons/lu";
 import { toast } from "sonner";
-import { Mission } from "./types";
+import {
+  Mission,
+  BadgeConditionType,
+} from "./types";
 import { generateImagePrompt } from "../../utils/geminiPromptGenerator";
 import { AIImageGenerationModal } from "./AIImageGenerationModal";
 import { generateImage } from "../../utils/geminiImageGenerator";
 
-interface NewBadgeData {
+export interface NewBadgeData {
   name: string;
   description: string;
   icon: string;
   mission_id: string;
+  conditionType: BadgeConditionType;
   targetCount: number;
   iconType: "emoji" | "upload" | "ai";
 }
@@ -31,6 +35,7 @@ export const CreateBadgeModal: React.FC<
     description: "",
     icon: "",
     mission_id: "",
+    conditionType: "daily_any",
     targetCount: 1,
     iconType: "emoji",
   });
@@ -63,8 +68,11 @@ export const CreateBadgeModal: React.FC<
       return;
     }
 
-    if (!newBadge.mission_id) {
-      toast.error("미션을 선택해주세요.");
+    if (
+      newBadge.conditionType === "specific_mission" &&
+      !newBadge.mission_id
+    ) {
+      toast.error("특정 미션을 선택해주세요.");
       return;
     }
 
@@ -234,41 +242,130 @@ export const CreateBadgeModal: React.FC<
             style={{
               color: "var(--color-text-primary)",
             }}>
-            새 배지 만들기
+            새 도전과제 만들기
           </h2>
 
           <form onSubmit={handleSubmit}>
-            {/* 미션 선택 */}
+            {/* 달성 조건 유형 선택 */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2">
-                미션 선택 *
+                달성 조건 *
               </label>
-              <select
-                value={newBadge.mission_id}
-                onChange={(e) =>
-                  setNewBadge({
-                    ...newBadge,
-                    mission_id: e.target.value,
-                  })
-                }
-                className="w-full p-2 border rounded-lg"
-                required>
-                <option value="">미션을 선택하세요</option>
-                <optgroup label="시스템 배지">
-                  <option value="weekly_streak_1">
-                    이번 주 미션 마스터
-                  </option>
-                </optgroup>
-                <optgroup label="오늘의 미션">
-                  {missions?.map((mission) => (
-                    <option
-                      key={mission.id}
-                      value={mission.id}>
-                      {mission.content}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+              <div className="space-y-2">
+                <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                  <input
+                    type="radio"
+                    name="conditionType"
+                    value="daily_any"
+                    checked={
+                      newBadge.conditionType === "daily_any"
+                    }
+                    onChange={() =>
+                      setNewBadge({
+                        ...newBadge,
+                        conditionType: "daily_any",
+                        mission_id: "daily_any",
+                      })
+                    }
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="font-medium text-sm">
+                      오늘의 미션 달성
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      등록된 미션 중 아무거나 완료할 때마다
+                      1회로 카운트됩니다.
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                  <input
+                    type="radio"
+                    name="conditionType"
+                    value="specific_mission"
+                    checked={
+                      newBadge.conditionType ===
+                      "specific_mission"
+                    }
+                    onChange={() =>
+                      setNewBadge({
+                        ...newBadge,
+                        conditionType: "specific_mission",
+                        mission_id: "",
+                      })
+                    }
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">
+                      특정 미션 달성
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      선택한 특정 미션을 완료할 때마다 1회로
+                      카운트됩니다.
+                    </div>
+                  </div>
+                </label>
+
+                {newBadge.conditionType ===
+                  "specific_mission" && (
+                  <div className="ml-8">
+                    <select
+                      value={newBadge.mission_id}
+                      onChange={(e) =>
+                        setNewBadge({
+                          ...newBadge,
+                          mission_id: e.target.value,
+                        })
+                      }
+                      className="w-full p-2 border rounded-lg text-sm"
+                      required>
+                      <option value="">
+                        미션을 선택하세요
+                      </option>
+                      {missions?.map((mission) => (
+                        <option
+                          key={mission.id}
+                          value={mission.id}>
+                          {mission.content ||
+                            mission.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                  <input
+                    type="radio"
+                    name="conditionType"
+                    value="weekly_complete"
+                    checked={
+                      newBadge.conditionType ===
+                      "weekly_complete"
+                    }
+                    onChange={() =>
+                      setNewBadge({
+                        ...newBadge,
+                        conditionType: "weekly_complete",
+                        mission_id: "weekly_complete",
+                      })
+                    }
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="font-medium text-sm">
+                      주간 미션 달성
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      월~금 동안 오늘의 미션을 모두 달성하면
+                      1회로 카운트됩니다.
+                    </div>
+                  </div>
+                </label>
+              </div>
             </div>
 
             {/* 배지 이름 */}
@@ -316,19 +413,34 @@ export const CreateBadgeModal: React.FC<
               <label className="block text-sm font-medium mb-2">
                 목표 달성 횟수
               </label>
-              <input
-                type="number"
-                min="1"
-                value={newBadge.targetCount}
-                onChange={(e) =>
-                  setNewBadge({
-                    ...newBadge,
-                    targetCount:
-                      parseInt(e.target.value) || 1,
-                  })
-                }
-                className="w-full p-2 border rounded-lg"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={newBadge.targetCount}
+                  onChange={(e) =>
+                    setNewBadge({
+                      ...newBadge,
+                      targetCount:
+                        parseInt(e.target.value) || 1,
+                    })
+                  }
+                  className="w-24 p-2 border rounded-lg"
+                />
+                <span className="text-sm text-gray-600">
+                  회 달성 시 배지 획득
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                {newBadge.conditionType === "daily_any" &&
+                  `아무 미션이든 총 ${newBadge.targetCount}회 완료하면 배지를 획득합니다.`}
+                {newBadge.conditionType ===
+                  "specific_mission" &&
+                  `선택한 미션을 ${newBadge.targetCount}회 완료하면 배지를 획득합니다.`}
+                {newBadge.conditionType ===
+                  "weekly_complete" &&
+                  `주간 미션을 ${newBadge.targetCount}회 달성하면 배지를 획득합니다. (월~금 모든 미션 완료 = 1회)`}
+              </p>
             </div>
 
             {/* 아이콘 선택 */}
