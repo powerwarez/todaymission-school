@@ -178,7 +178,12 @@ const Sidebar: React.FC = () => {
                 <div className="text-sm opacity-80">
                   <p>{userProfile.name}</p>
                   {isTeacher && userProfile.school && (
-                    <p>{userProfile.school.name}</p>
+                    <p>
+                      {userProfile.school.name}
+                      {userProfile.school.class_name
+                        ? ` ${userProfile.school.class_name}`
+                        : ""}
+                    </p>
                   )}
                   {isStudent && (
                     <p

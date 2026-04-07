@@ -48,6 +48,8 @@ import {
   Font,
 } from "@react-pdf/renderer";
 
+const STUDENT_APP_URL = "https://todaymission.vercel.app";
+
 const TeacherStudentsPage: React.FC = () => {
   const { userProfile } = useAuth();
   const [students, setStudents] = useState<UserProfile[]>(
@@ -58,6 +60,7 @@ const TeacherStudentsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] =
     useState(false);
   const [schoolName, setSchoolName] = useState<string>("");
+  const [className, setClassName] = useState<string>("");
   const [selectedStudent, setSelectedStudent] =
     useState<UserProfile | null>(null);
   const [showQRDialog, setShowQRDialog] = useState(false);
@@ -91,12 +94,13 @@ const TeacherStudentsPage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from("schools")
-        .select("name")
+        .select("name, class_name")
         .eq("id", userProfile.school_id)
         .single();
 
       if (data && !error) {
         setSchoolName(data.name);
+        setClassName(data.class_name || "");
       }
     } catch (err) {
       console.error("Error fetching school:", err);
@@ -142,13 +146,9 @@ const TeacherStudentsPage: React.FC = () => {
     }
 
     try {
-      const qrData = JSON.stringify({
-        token: student.qr_token,
-        student_name: student.name,
-        school_id: userProfile?.school_id,
-      });
+      const loginUrl = `${STUDENT_APP_URL}?qr_token=${encodeURIComponent(student.qr_token)}`;
 
-      const url = await QRCode.toDataURL(qrData, {
+      const url = await QRCode.toDataURL(loginUrl, {
         width: 300,
         margin: 2,
         color: {
@@ -191,14 +191,10 @@ const TeacherStudentsPage: React.FC = () => {
         ],
       });
 
-      // QR 코드 생성
-      const qrData = JSON.stringify({
-        token: student.qr_token,
-        student_name: student.name,
-        school_id: userProfile?.school_id,
-      });
+      // QR 코드 생성 (URL 기반)
+      const loginUrl = `${STUDENT_APP_URL}?qr_token=${encodeURIComponent(student.qr_token)}`;
 
-      const qrCodeDataURL = await QRCode.toDataURL(qrData, {
+      const qrCodeDataURL = await QRCode.toDataURL(loginUrl, {
         width: 300,
         margin: 2,
         color: {
@@ -255,6 +251,11 @@ const TeacherStudentsPage: React.FC = () => {
               <Text style={styles.schoolName}>
                 {schoolName}
               </Text>
+              {className ? (
+                <Text style={styles.instruction}>
+                  {className} - 오늘의 미션 로그인
+                </Text>
+              ) : null}
               <Text style={styles.studentName}>
                 {student.name}
               </Text>
@@ -263,7 +264,8 @@ const TeacherStudentsPage: React.FC = () => {
                 src={qrCodeDataURL}
               />
               <Text style={styles.instruction}>
-                태블릿으로 위의 QR 코드를 스캔하세요.
+                태블릿 카메라로 위의 QR 코드를 스캔하면
+                자동으로 로그인됩니다.
               </Text>
             </View>
           </Page>
@@ -376,9 +378,11 @@ const TeacherStudentsPage: React.FC = () => {
           <PrivacyConsentPDFButton
             schoolName={schoolName || "학교"}
             className={
-              userProfile?.name
-                ? `${userProfile.name} 선생님 반`
-                : "학급"
+              className
+                ? className
+                : userProfile?.name
+                  ? `${userProfile.name} 선생님 반`
+                  : "학급"
             }
           />
           {students.length > 0 && schoolName && (
@@ -391,11 +395,7 @@ const TeacherStudentsPage: React.FC = () => {
                   qr_token: student.qr_token!,
                 }))}
               schoolName={schoolName}
-              className={
-                userProfile?.name
-                  ? `${userProfile.name} 선생님 반`
-                  : "학급"
-              }
+              className={className || undefined}
               consentChecked={consentChecked}
             />
           )}

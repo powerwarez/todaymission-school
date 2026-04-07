@@ -74,6 +74,7 @@ export type AuthUser = User;
 export interface School {
   id: string;
   name: string;
+  class_name?: string;
   created_at: string;
   updated_at: string;
 }

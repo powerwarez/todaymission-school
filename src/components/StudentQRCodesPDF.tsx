@@ -35,6 +35,7 @@ interface StudentQRCodesPDFProps {
   schoolName: string;
   className?: string;
   consentChecked?: boolean;
+  studentAppUrl?: string;
 }
 
 // PDF Styles
@@ -93,6 +94,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "NotoSansKR",
     marginBottom: 5,
+    display: "none",
   },
   instructions: {
     marginTop: 15,
@@ -134,8 +136,9 @@ const styles = StyleSheet.create({
 const QRCodeDocument: React.FC<{
   students: StudentCreationResult[];
   schoolName: string;
+  className?: string;
   qrCodes: { [key: string]: string };
-}> = ({ students, schoolName, qrCodes }) => (
+}> = ({ students, schoolName, className, qrCodes }) => (
   <Document>
     {students.map((student) => (
       <Page
@@ -147,9 +150,15 @@ const QRCodeDocument: React.FC<{
             <Text style={styles.schoolName}>
               {schoolName}
             </Text>
-            <Text style={styles.subtitle}>
-              오늘의 미션 로그인
-            </Text>
+            {className ? (
+              <Text style={styles.subtitle}>
+                {className} - 오늘의 미션 로그인
+              </Text>
+            ) : (
+              <Text style={styles.subtitle}>
+                오늘의 미션 로그인
+              </Text>
+            )}
           </View>
 
           <View style={styles.qrCodeContainer}>
@@ -162,10 +171,6 @@ const QRCodeDocument: React.FC<{
                 src={qrCodes[student.student_id]}
               />
             )}
-            <Text style={styles.qrToken}>
-              로그인 코드:{" "}
-              {student.qr_token.substring(0, 8)}...
-            </Text>
           </View>
 
           <View style={styles.instructions}>
@@ -173,17 +178,14 @@ const QRCodeDocument: React.FC<{
               로그인 방법
             </Text>
             <Text style={styles.instructionText}>
-              1. 태블릿으로 위의 QR 코드를 스캔하세요.
+              1. 태블릿 카메라로 위의 QR 코드를 스캔하세요.
             </Text>
             <Text style={styles.instructionText}>
-              2. 또는 "오늘의 미션" 사이트에서 QR 로그인을
-              선택하세요.
+              2. 자동으로 오늘의 미션 사이트로 이동하면서
+              로그인됩니다.
             </Text>
             <Text style={styles.instructionText}>
-              3. 카메라가 열리면 위의 QR 코드를 비춰주세요.
-            </Text>
-            <Text style={styles.instructionText}>
-              4. 로그인이 완료되면 오늘의 미션을 확인할 수
+              3. 로그인이 완료되면 오늘의 미션을 확인할 수
               있어요!
             </Text>
           </View>
@@ -200,6 +202,8 @@ const QRCodeDocument: React.FC<{
   </Document>
 );
 
+const STUDENT_APP_URL = "https://todaymission.vercel.app";
+
 const StudentQRCodesPDF: React.FC<
   StudentQRCodesPDFProps
 > = ({
@@ -207,6 +211,7 @@ const StudentQRCodesPDF: React.FC<
   schoolName,
   className,
   consentChecked = false,
+  studentAppUrl = STUDENT_APP_URL,
 }) => {
   const [qrCodes, setQrCodes] = useState<{
     [key: string]: string;
@@ -219,13 +224,10 @@ const StudentQRCodesPDF: React.FC<
 
       for (const student of students) {
         try {
-          const qrData = JSON.stringify({
-            token: student.qr_token,
-            student_name: student.student_name,
-          });
+          const loginUrl = `${studentAppUrl}?qr_token=${encodeURIComponent(student.qr_token)}`;
 
           const qrCodeDataURL = await QRCode.toDataURL(
-            qrData,
+            loginUrl,
             {
               width: 300,
               margin: 2,
@@ -249,7 +251,7 @@ const StudentQRCodesPDF: React.FC<
     if (students.length > 0) {
       generateQRCodes();
     }
-  }, [students]);
+  }, [students, studentAppUrl]);
 
   if (generating) {
     return (
@@ -266,6 +268,7 @@ const StudentQRCodesPDF: React.FC<
         <QRCodeDocument
           students={students}
           schoolName={schoolName}
+          className={className}
           qrCodes={qrCodes}
         />
       }

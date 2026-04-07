@@ -8,12 +8,16 @@ import {
   LuTriangle,
   LuEye,
   LuEyeOff,
+  LuSchool,
+  LuUsers,
 } from "react-icons/lu";
 import { toast } from "react-hot-toast";
 
 const AccountSettings: React.FC = () => {
   const { userProfile } = useAuth();
   const [childName, setChildName] = useState<string>("");
+  const [schoolName, setSchoolName] = useState<string>("");
+  const [className, setClassName] = useState<string>("");
   const [pinCode, setPinCode] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,10 +27,12 @@ const AccountSettings: React.FC = () => {
   useEffect(() => {
     if (userProfile) {
       setChildName(userProfile.name);
-      // PIN이 text 타입이므로 직접 사용
       setPinCode(userProfile.pin_code || "0000");
-      // PIN이 "0000"인지 확인
       setIsDefaultPin(!userProfile.pin_code || userProfile.pin_code === "0000");
+      if (userProfile.school) {
+        setSchoolName(userProfile.school.name || "");
+        setClassName(userProfile.school.class_name || "");
+      }
     }
   }, [userProfile]);
 
@@ -49,9 +55,13 @@ const AccountSettings: React.FC = () => {
       return;
     }
 
-    // 유효성 검사
     if (childName.trim() === "") {
       setError("이름을 입력해주세요.");
+      return;
+    }
+
+    if (schoolName.trim() === "") {
+      setError("학교 이름을 입력해주세요.");
       return;
     }
 
@@ -64,19 +74,29 @@ const AccountSettings: React.FC = () => {
     setError(null);
 
     try {
-      // 사용자 정보 업데이트
       const { error: updateError } = await supabase
         .from("users")
         .update({
           name: childName.trim(),
-          pin_code: pinCode, // text 타입으로 직접 저장
+          pin_code: pinCode,
         })
         .eq("id", userProfile.id);
 
       if (updateError) throw updateError;
 
+      if (userProfile.school_id) {
+        const { error: schoolError } = await supabase
+          .from("schools")
+          .update({
+            name: schoolName.trim(),
+            class_name: className.trim() || null,
+          })
+          .eq("id", userProfile.school_id);
+
+        if (schoolError) throw schoolError;
+      }
+
       toast.success("설정이 저장되었습니다.");
-      // PIN이 변경되었는지 확인
       if (pinCode !== "0000") {
         setIsDefaultPin(false);
       }
@@ -96,7 +116,9 @@ const AccountSettings: React.FC = () => {
     if (!userProfile) return false;
     return (
       childName !== userProfile.name ||
-      pinCode !== (userProfile.pin_code || "0000")
+      pinCode !== (userProfile.pin_code || "0000") ||
+      schoolName !== (userProfile.school?.name || "") ||
+      className !== (userProfile.school?.class_name || "")
     );
   };
 
@@ -132,6 +154,63 @@ const AccountSettings: React.FC = () => {
           )}
 
           <div className="space-y-6">
+            {/* 학교 이름 설정 */}
+            <div>
+              <label
+                htmlFor="schoolName"
+                className="block text-sm font-medium mb-2 flex items-center"
+                style={{
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <LuSchool className="mr-2" /> 학교 이름
+              </label>
+              <input
+                type="text"
+                id="schoolName"
+                value={schoolName}
+                onChange={(e) => {
+                  setSchoolName(e.target.value);
+                  setError(null);
+                }}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none"
+                style={{
+                  borderColor: "var(--color-border-default)",
+                }}
+                placeholder="학교 이름을 입력하세요"
+              />
+            </div>
+
+            {/* 반 이름 설정 */}
+            <div>
+              <label
+                htmlFor="className"
+                className="block text-sm font-medium mb-2 flex items-center"
+                style={{
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <LuUsers className="mr-2" /> 반 이름
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                로그인 안내장에 학교 이름과 함께 표시됩니다. (예: 6학년 5반, 용용반, 6학년 가람반)
+              </p>
+              <input
+                type="text"
+                id="className"
+                value={className}
+                onChange={(e) => {
+                  setClassName(e.target.value);
+                  setError(null);
+                }}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none"
+                style={{
+                  borderColor: "var(--color-border-default)",
+                }}
+                placeholder="반 이름을 입력하세요 (선택)"
+              />
+            </div>
+
             {/* 이름 설정 */}
             <div>
               <label
