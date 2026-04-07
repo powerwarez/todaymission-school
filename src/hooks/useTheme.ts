@@ -9,8 +9,9 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 
 export const useTheme = () => {
-  const [currentTheme, setCurrentTheme] =
-    useState<string>("summerSky");
+  const [currentTheme, setCurrentTheme] = useState<string>(
+    () => localStorage.getItem("app-theme") || "summerSky"
+  );
   const [previewTheme, setPreviewTheme] = useState<
     string | null
   >(null); // 미리보기 테마
@@ -27,7 +28,12 @@ export const useTheme = () => {
       try {
         // 사용자가 로그인한 경우
         if (userProfile) {
-          let themeToApply = "summerSky";
+          const cachedTheme =
+            localStorage.getItem("app-theme");
+          let themeToApply =
+            cachedTheme && themes[cachedTheme]
+              ? cachedTheme
+              : "summerSky";
 
           // 학생인 경우 교사의 테마를 가져옴
           if (
@@ -46,17 +52,24 @@ export const useTheme = () => {
             ) {
               themeToApply = teacherData.theme;
             }
-          } else if (
-            userProfile.role === "teacher" &&
-            userProfile.theme
-          ) {
-            // 교사인 경우 자신의 테마 사용
-            themeToApply = userProfile.theme;
+          } else if (userProfile.role === "teacher") {
+            // 교사인 경우: DB에서 최신 테마를 가져옴
+            const { data: teacherData } = await supabase
+              .from("users")
+              .select("theme")
+              .eq("id", userProfile.id)
+              .single();
+
+            if (
+              teacherData?.theme &&
+              themes[teacherData.theme]
+            ) {
+              themeToApply = teacherData.theme;
+            }
           }
 
           setCurrentTheme(themeToApply);
           updateCSSVariables(themes[themeToApply]);
-          // 로컬 스토리지에도 저장 (캐싱 목적)
           localStorage.setItem("app-theme", themeToApply);
         } else {
           // 로그인하지 않은 경우 로컬 스토리지에서 테마 확인
