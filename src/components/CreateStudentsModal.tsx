@@ -63,78 +63,57 @@ const CreateStudentsModal: React.FC<
 
     setLoading(true);
     setError(null);
-    setProgress(`${names.length}명의 학생 계정 생성 중...`);
+    setProgress(
+      `${names.length}명의 학생 계정을 생성하고 있습니다...`
+    );
 
     try {
-      const studentsToInsert = names.map((name) => ({
+      const studentsData = names.map((name) => ({
         name,
-        role: "student" as const,
-        school_id: schoolId,
-        teacher_id: teacherId,
-        auth_provider: "qr" as const,
         qr_token: generateQrToken(),
       }));
 
-      setProgress("학생 계정 일괄 생성 중...");
+      const { data, error: rpcError } = await supabase.rpc(
+        "create_batch_students",
+        {
+          p_teacher_id: teacherId,
+          p_school_id: schoolId,
+          p_students: studentsData,
+        }
+      );
 
-      const { data: insertedStudents, error: insertError } =
-        await supabase
-          .from("users")
-          .insert(studentsToInsert)
-          .select("id, name, qr_token");
-
-      if (insertError) {
-        console.error("Batch insert error:", insertError);
+      if (rpcError) {
+        console.error("RPC error:", rpcError);
         throw new Error(
-          `학생 계정 생성 실패: ${insertError.message}`
+          `학생 계정 생성 실패: ${rpcError.message}`
         );
       }
 
-      if (
-        !insertedStudents ||
-        insertedStudents.length === 0
-      ) {
+      const results: StudentCreationResult[] = (
+        data as Array<{
+          student_id: string;
+          student_name: string;
+          qr_token: string;
+        }>
+      ).map((item) => ({
+        student_id: item.student_id,
+        student_name: item.student_name,
+        qr_token: item.qr_token,
+      }));
+
+      if (results.length === 0) {
         throw new Error(
-          "학생 계정이 생성되지 않았습니다. 다시 시도해주세요."
+          "학생 계정이 생성되지 않았습니다."
         );
       }
 
-      setProgress(
-        `${insertedStudents.length}명 생성 완료. QR 코드 데이터 저장 중...`
-      );
-
-      const qrCodesData = insertedStudents.map(
-        (student) => ({
-          student_id: student.id,
-          qr_data: JSON.stringify({
-            token: student.qr_token,
-            student_name: student.name,
-            school_id: schoolId,
-          }),
-        })
-      );
-
-      const { error: qrError } = await supabase
-        .from("student_qr_codes")
-        .insert(qrCodesData);
-
-      if (qrError) {
-        console.error("QR codes batch insert error:", qrError);
-      }
-
-      const createdStudents: StudentCreationResult[] =
-        insertedStudents.map((student) => ({
-          student_id: student.id,
-          student_name: student.name,
-          qr_token: student.qr_token,
-        }));
+      setProgress("");
 
       if (onSuccess) {
-        onSuccess(createdStudents);
+        onSuccess(results);
       }
 
       setStudentNames("");
-      setProgress("");
       onOpenChange(false);
     } catch (err) {
       console.error("Error creating students:", err);
