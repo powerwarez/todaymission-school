@@ -386,7 +386,14 @@ const TeacherStatisticsPage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>학생별 달성률</CardTitle>
-            <CardDescription>기간 내 미션 달성률 순위</CardDescription>
+            <CardDescription>
+              기간 내 미션 달성률 순위
+              {studentStats.length > 0 && (
+                <span className="ml-2 text-gray-400">
+                  ({studentStats.length}명)
+                </span>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {studentStats.length === 0 ? (
@@ -394,40 +401,50 @@ const TeacherStatisticsPage: React.FC = () => {
                 아직 데이터가 없습니다.
               </p>
             ) : (
-              <div className="space-y-4">
+              <div className="max-h-[480px] overflow-y-auto pr-1 space-y-3">
                 {studentStats
                   .sort((a, b) => b.completion_rate - a.completion_rate)
-                  .slice(0, 10)
-                  .map((student, index) => (
-                    <div
-                      key={student.student_id}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg font-bold text-gray-400 w-8">
+                  .map((student, index) => {
+                    const rate = student.completion_rate;
+                    const barColor =
+                      rate >= 80
+                        ? "bg-emerald-500"
+                        : rate >= 50
+                          ? "bg-amber-400"
+                          : "bg-rose-400";
+
+                    return (
+                      <div
+                        key={student.student_id}
+                        className="flex items-center gap-3"
+                      >
+                        <span className="text-sm font-bold text-gray-400 w-6 text-right shrink-0">
                           {index + 1}
                         </span>
-                        <span className="font-medium">
+                        <span className="font-medium w-20 truncate shrink-0">
                           {student.student_name}
                         </span>
+                        <div className="flex-1 flex items-center gap-3 min-w-0">
+                          <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                              style={{ width: `${Math.max(rate, 2)}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500 shrink-0 w-16 text-right">
+                            {student.completed_missions}/
+                            {student.total_missions} 완료
+                          </span>
+                          <Badge
+                            className="shrink-0 w-14 justify-center"
+                            variant={rate >= 80 ? "default" : "secondary"}
+                          >
+                            {rate}%
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <span className="text-sm text-gray-500">
-                          {student.completed_missions}/{student.total_missions}{" "}
-                          완료
-                        </span>
-                        <Badge
-                          variant={
-                            student.completion_rate >= 80
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {student.completion_rate}%
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
           </CardContent>
