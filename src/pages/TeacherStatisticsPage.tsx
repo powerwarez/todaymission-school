@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, waitForSession } from "../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import LoadingWithRefresh from "../components/LoadingWithRefresh";
 import {
@@ -130,16 +130,23 @@ const TeacherStatisticsPage: React.FC = () => {
     }
   }, [userProfile, selectedPeriod]);
 
-  // 탭 복귀 시 통계 데이터 새로고침
+  // 탭 복귀 시 세션 갱신 완료를 기다린 후 통계 데이터 새로고침
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && userProfile?.id) {
+    let cancelled = false;
+
+    const handleVisibilityChange = async () => {
+      if (document.hidden || !userProfile?.id) return;
+
+      await waitForSession();
+
+      if (!cancelled) {
         fetchStatistics();
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
+      cancelled = true;
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [userProfile, selectedPeriod]);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, waitForSession } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../contexts/NotificationContext";
 import { MissionLog } from "../types";
@@ -227,7 +227,7 @@ export const useMissionLogs = (formattedDate: string) => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  // 페이지가 다시 보일 때 세션 갱신 후 로그 새로고침
+  // 페이지가 다시 보일 때 세션 갱신 완료를 기다린 후 로그 새로고침
   const lastVisibleFetchRef = useRef<number>(0);
   useEffect(() => {
     let cancelled = false;
@@ -239,17 +239,7 @@ export const useMissionLogs = (formattedDate: string) => {
       if (now - lastVisibleFetchRef.current < 1000) return;
       lastVisibleFetchRef.current = now;
 
-      console.log("[useMissionLogs] Page visible, refreshing logs");
-
-      if (userProfile.role === "student" && userProfile.qr_token) {
-        // QR 학생은 Supabase auth 세션이 없으므로 바로 fetch
-      } else {
-        try {
-          await supabase.auth.refreshSession();
-        } catch (e) {
-          console.warn("[useMissionLogs] Session refresh warning:", e);
-        }
-      }
+      await waitForSession();
 
       if (!cancelled) {
         fetchInitialData();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, waitForSession } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { Mission } from "../types";
 
@@ -78,7 +78,7 @@ export const useMissions = () => {
     fetchMissions();
   }, [fetchMissions]);
 
-  // 페이지가 다시 보일 때 세션 갱신 후 미션 새로고침
+  // 페이지가 다시 보일 때 세션 갱신 완료를 기다린 후 미션 새로고침
   useEffect(() => {
     let cancelled = false;
 
@@ -89,15 +89,7 @@ export const useMissions = () => {
       if (now - lastVisibleFetchRef.current < 1000) return;
       lastVisibleFetchRef.current = now;
 
-      console.log("[useMissions] Page visible, refreshing session and missions");
-
-      if (isTeacher) {
-        try {
-          await supabase.auth.refreshSession();
-        } catch (e) {
-          console.warn("[useMissions] Session refresh warning:", e);
-        }
-      }
+      await waitForSession();
 
       if (!cancelled) {
         fetchMissions();
@@ -109,7 +101,7 @@ export const useMissions = () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [fetchMissions, userProfile, isTeacher]);
+  }, [fetchMissions, userProfile]);
 
   const addMission = async (missionData: {
     content: string;

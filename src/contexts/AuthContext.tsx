@@ -6,9 +6,8 @@ import React, {
   ReactNode,
 } from "react";
 import { Session, User, AuthChangeEvent } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, waitForSession } from "../lib/supabaseClient";
 import { UserProfile } from "../types/index";
-import { useOnPageVisible } from "../hooks/usePageVisibility";
 
 interface AuthContextType {
   session: Session | null;
@@ -249,11 +248,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // 페이지가 다시 보일 때 세션과 프로필 새로고침
-  useOnPageVisible(() => {
-    const refreshAuthState = async () => {
+  // 페이지가 다시 보일 때 세션 갱신 완료를 기다린 후 프로필 새로고침
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.hidden) return;
+
+      await waitForSession();
+
       try {
-        // 현재 세션 확인
         const {
           data: { session: currentSession },
         } = await supabase.auth.getSession();
@@ -263,7 +265,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(currentSession);
           setUser(currentSession.user);
 
-          // 프로필 새로고침
           const profile = await fetchUserProfile(currentSession.user);
           if (profile) {
             setUserProfile(profile);
@@ -273,7 +274,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userProfile.role === "student" &&
           userProfile.qr_token
         ) {
-          // QR 로그인 학생의 경우 프로필만 새로고침
           console.log("Page visible: Refreshing student profile");
           const { data: refreshedProfile } = await supabase
             .from("users")
@@ -290,7 +290,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
 
-    refreshAuthState();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [userProfile?.id]);
 
   const logout = async () => {
