@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import {
   TrendingUp,
   Users,
@@ -37,6 +38,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  CalendarDays,
 } from "lucide-react";
 import { DateTime } from "luxon";
 
@@ -75,6 +77,12 @@ const TeacherStatisticsPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState("today");
+  const [customStartDate, setCustomStartDate] = useState(
+    DateTime.now().toFormat("yyyy-MM-dd")
+  );
+  const [customEndDate, setCustomEndDate] = useState(
+    DateTime.now().toFormat("yyyy-MM-dd")
+  );
   const [studentStats, setStudentStats] = useState<StudentStats[]>([]);
   const [missionStats, setMissionStats] = useState<MissionStats[]>([]);
   const [overallStats, setOverallStats] = useState({
@@ -138,11 +146,14 @@ const TeacherStatisticsPage: React.FC = () => {
     console.log("TeacherStatisticsPage - selectedPeriod:", selectedPeriod);
 
     if (userProfile?.id) {
+      if (selectedPeriod === "custom" && (!customStartDate || !customEndDate)) {
+        return;
+      }
       fetchStatistics();
     } else {
       setLoading(false);
     }
-  }, [userProfile, selectedPeriod]);
+  }, [userProfile, selectedPeriod, customStartDate, customEndDate]);
 
   // 탭 복귀 시 세션 갱신 완료를 기다린 후 통계 데이터 새로고침
   useEffect(() => {
@@ -179,9 +190,9 @@ const TeacherStatisticsPage: React.FC = () => {
 
     setLoading(true);
     try {
-      // Fetch period boundaries
       const now = DateTime.now();
       let startDate: DateTime;
+      let endDate: DateTime = now;
 
       switch (selectedPeriod) {
         case "today":
@@ -195,6 +206,14 @@ const TeacherStatisticsPage: React.FC = () => {
           break;
         case "year":
           startDate = now.startOf("year");
+          break;
+        case "custom":
+          startDate = DateTime.fromISO(customStartDate).startOf("day");
+          endDate = DateTime.fromISO(customEndDate).endOf("day");
+          if (!startDate.isValid || !endDate.isValid) {
+            setLoading(false);
+            return;
+          }
           break;
         default:
           startDate = now.minus({ days: 7 });
@@ -230,26 +249,36 @@ const TeacherStatisticsPage: React.FC = () => {
         .eq("school_id", userProfile.school_id)
         .eq("is_active", true);
 
-      // Fetch mission logs for the period
       const studentIds = students.map((s) => s.id);
-      const { data: missionLogs } = await supabase
+      let missionLogsQuery = supabase
         .from("mission_logs")
         .select("student_id, mission_id, completed_at")
         .in("student_id", studentIds)
         .gte("completed_at", startDate.toISO());
+      if (selectedPeriod === "custom") {
+        missionLogsQuery = missionLogsQuery.lte("completed_at", endDate.toISO());
+      }
+      const { data: missionLogs } = await missionLogsQuery;
 
-      // Fetch badges earned - both system and custom badges
-      const { data: systemBadges } = await supabase
+      let systemBadgesQuery = supabase
         .from("student_system_badges")
         .select("student_id")
         .in("student_id", studentIds)
         .gte("earned_date", startDate.toFormat("yyyy-MM-dd"));
+      if (selectedPeriod === "custom") {
+        systemBadgesQuery = systemBadgesQuery.lte("earned_date", endDate.toFormat("yyyy-MM-dd"));
+      }
+      const { data: systemBadges } = await systemBadgesQuery;
 
-      const { data: customBadges } = await supabase
+      let customBadgesQuery = supabase
         .from("student_custom_badges")
         .select("student_id")
         .in("student_id", studentIds)
         .gte("earned_date", startDate.toFormat("yyyy-MM-dd"));
+      if (selectedPeriod === "custom") {
+        customBadgesQuery = customBadgesQuery.lte("earned_date", endDate.toFormat("yyyy-MM-dd"));
+      }
+      const { data: customBadges } = await customBadgesQuery;
 
       // Combine both badge types
       const earnedBadges = [...(systemBadges || []), ...(customBadges || [])];
@@ -266,13 +295,13 @@ const TeacherStatisticsPage: React.FC = () => {
       // Calculate student statistics
       const studentStatsMap = new Map<string, StudentStats>();
 
+      const periodDays = Math.max(1, Math.ceil(endDate.diff(startDate, "days").days));
+
       students.forEach((student) => {
         studentStatsMap.set(student.id, {
           student_id: student.id,
           student_name: student.name,
-          total_missions:
-            (missions?.length || 0) *
-            Math.ceil(now.diff(startDate, "days").days),
+          total_missions: (missions?.length || 0) * periodDays,
           completed_missions: 0,
           completion_rate: 0,
           badges_earned: 0,
@@ -327,8 +356,7 @@ const TeacherStatisticsPage: React.FC = () => {
       });
 
       missionStatsMap.forEach((stats) => {
-        const maxAttempts =
-          students.length * Math.ceil(now.diff(startDate, "days").days);
+        const maxAttempts = students.length * periodDays;
         if (maxAttempts > 0) {
           stats.completion_rate = Math.round(
             (stats.total_attempts / maxAttempts) * 100
@@ -475,24 +503,51 @@ const TeacherStatisticsPage: React.FC = () => {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
           <div>
             <h1 className="text-3xl font-bold">통계</h1>
             <p className="text-gray-600 mt-1">
               학생들의 미션 수행 현황을 확인합니다.
             </p>
           </div>
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-40 bg-white border-gray-300">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white border-gray-300">
-              <SelectItem value="today">오늘</SelectItem>
-              <SelectItem value="week">이번 주</SelectItem>
-              <SelectItem value="month">이번 달</SelectItem>
-              <SelectItem value="year">올해</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-40 bg-white border-gray-300">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-gray-300">
+                <SelectItem value="today">오늘</SelectItem>
+                <SelectItem value="week">이번 주</SelectItem>
+                <SelectItem value="month">이번 달</SelectItem>
+                <SelectItem value="year">올해</SelectItem>
+                <SelectItem value="custom">
+                  <span className="flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    기간 지정
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedPeriod === "custom" && (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="date"
+                  value={customStartDate}
+                  max={customEndDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="w-[140px] bg-white border-gray-300 text-sm"
+                />
+                <span className="text-gray-400 text-sm">~</span>
+                <Input
+                  type="date"
+                  value={customEndDate}
+                  min={customStartDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="w-[140px] bg-white border-gray-300 text-sm"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Overall Stats */}
