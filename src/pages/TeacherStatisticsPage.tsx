@@ -542,6 +542,7 @@ const TeacherStatisticsPage: React.FC = () => {
                   type="date"
                   value={customEndDate}
                   min={customStartDate}
+                  max={DateTime.now().toFormat("yyyy-MM-dd")}
                   onChange={(e) => setCustomEndDate(e.target.value)}
                   className="w-[140px] bg-white border-gray-300 text-sm"
                 />
