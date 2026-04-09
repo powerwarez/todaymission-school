@@ -110,6 +110,19 @@ const TeacherStatisticsPage: React.FC = () => {
   >([]);
   const [loadingStudentDetail, setLoadingStudentDetail] = useState(false);
 
+  // 배지 상세 다이얼로그 상태
+  const [showBadgeDetail, setShowBadgeDetail] = useState(false);
+  const [badgeDetails, setBadgeDetails] = useState<
+    {
+      student_name: string;
+      badge_name: string;
+      badge_icon: string;
+      earned_date: string;
+      badge_type: "system" | "custom";
+    }[]
+  >([]);
+  const [loadingBadgeDetail, setLoadingBadgeDetail] = useState(false);
+
   // 미션이 있는지 체크
   useEffect(() => {
     const checkMissions = async () => {
@@ -496,6 +509,119 @@ const TeacherStatisticsPage: React.FC = () => {
     }
   };
 
+  const handleBadgeCardClick = async () => {
+    if (overallStats.totalBadgesEarned === 0) return;
+
+    setShowBadgeDetail(true);
+    setLoadingBadgeDetail(true);
+    setBadgeDetails([]);
+
+    try {
+      const studentIds = studentsCache.map((s) => s.id);
+      if (studentIds.length === 0) {
+        setLoadingBadgeDetail(false);
+        return;
+      }
+
+      const now = DateTime.now();
+      let startDate: DateTime;
+      let endDate: DateTime = now;
+
+      switch (selectedPeriod) {
+        case "today":
+          startDate = now.startOf("day");
+          break;
+        case "week":
+          startDate = now.startOf("week");
+          break;
+        case "month":
+          startDate = now.startOf("month");
+          break;
+        case "year":
+          startDate = now.startOf("year");
+          break;
+        case "custom":
+          startDate = DateTime.fromISO(customStartDate).startOf("day");
+          endDate = DateTime.fromISO(customEndDate).endOf("day");
+          break;
+        default:
+          startDate = now.minus({ days: 7 });
+      }
+
+      const startDateStr = startDate.toFormat("yyyy-MM-dd");
+      const endDateStr = endDate.toFormat("yyyy-MM-dd");
+
+      const studentMap = new Map(studentsCache.map((s) => [s.id, s.name]));
+
+      // 시스템 배지 조회
+      let sysQuery = supabase
+        .from("student_system_badges")
+        .select("student_id, system_badge_id, earned_date")
+        .in("student_id", studentIds)
+        .gte("earned_date", startDateStr);
+      if (selectedPeriod === "custom") {
+        sysQuery = sysQuery.lte("earned_date", endDateStr);
+      }
+      const { data: sysBadges } = await sysQuery;
+
+      // 커스텀 배지 조회 (배지 정보 포함)
+      let customQuery = supabase
+        .from("student_custom_badges")
+        .select("student_id, badge_id, earned_date, badges(name, icon)")
+        .in("student_id", studentIds)
+        .gte("earned_date", startDateStr);
+      if (selectedPeriod === "custom") {
+        customQuery = customQuery.lte("earned_date", endDateStr);
+      }
+      const { data: custBadges } = await customQuery;
+
+      const details: typeof badgeDetails = [];
+
+      // 시스템 배지 처리
+      const systemBadgeNames: Record<string, { name: string; icon: string }> = {
+        weekly_mission_complete: { name: "주간 미션 달성", icon: "🌟" },
+        daily_hero: { name: "오늘의 영웅", icon: "🦸" },
+      };
+
+      sysBadges?.forEach((b) => {
+        const info = systemBadgeNames[b.system_badge_id] || {
+          name: b.system_badge_id,
+          icon: "🏅",
+        };
+        details.push({
+          student_name: studentMap.get(b.student_id) || "알 수 없음",
+          badge_name: info.name,
+          badge_icon: info.icon,
+          earned_date: b.earned_date,
+          badge_type: "system",
+        });
+      });
+
+      // 커스텀 배지 처리
+      custBadges?.forEach((b: any) => {
+        const badge = b.badges;
+        details.push({
+          student_name: studentMap.get(b.student_id) || "알 수 없음",
+          badge_name: badge?.name || "알 수 없음",
+          badge_icon: badge?.icon || "🏅",
+          earned_date: b.earned_date,
+          badge_type: "custom",
+        });
+      });
+
+      details.sort(
+        (a, b) => b.earned_date.localeCompare(a.earned_date) ||
+          a.student_name.localeCompare(b.student_name, "ko")
+      );
+
+      setBadgeDetails(details);
+    } catch (error) {
+      console.error("Error fetching badge details:", error);
+    } finally {
+      setLoadingBadgeDetail(false);
+    }
+  };
+
   if (loading) {
     return <LoadingWithRefresh />;
   }
@@ -589,10 +715,22 @@ const TeacherStatisticsPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className={`${
+              overallStats.totalBadgesEarned > 0
+                ? "cursor-pointer hover:shadow-md hover:border-yellow-300 transition-all"
+                : ""
+            }`}
+            onClick={handleBadgeCardClick}
+          >
             <CardHeader className="pb-3">
               <Award className="h-8 w-8 text-yellow-600 mb-2" />
-              <CardTitle className="text-lg">획득한 배지</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-1">
+                획득한 배지
+                {overallStats.totalBadgesEarned > 0 && (
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">
@@ -910,6 +1048,85 @@ const TeacherStatisticsPage: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => setSelectedStudent(null)}
+            >
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 배지 상세 다이얼로그 */}
+      <Dialog
+        open={showBadgeDetail}
+        onOpenChange={(open) => {
+          if (!open) setShowBadgeDetail(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-yellow-600" />
+              획득한 도전과제 상세
+            </DialogTitle>
+            <DialogDescription>
+              {badgeDetails.length > 0
+                ? `총 ${badgeDetails.length}개의 도전과제가 달성되었습니다.`
+                : "달성된 도전과제가 없습니다."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingBadgeDetail ? (
+            <div className="flex justify-center py-8">
+              <div
+                className="animate-spin rounded-full h-8 w-8 border-b-2"
+                style={{ borderColor: "var(--color-primary-medium)" }}
+              />
+            </div>
+          ) : badgeDetails.length === 0 ? (
+            <p className="text-center text-gray-500 py-6">
+              해당 기간에 획득한 도전과제가 없습니다.
+            </p>
+          ) : (
+            <div className="max-h-[400px] overflow-y-auto space-y-1.5">
+              {badgeDetails.map((detail, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-yellow-50"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {detail.badge_icon &&
+                    detail.badge_icon.startsWith("http") ? (
+                      <img
+                        src={detail.badge_icon}
+                        alt={detail.badge_name}
+                        className="w-7 h-7 object-contain shrink-0"
+                      />
+                    ) : (
+                      <span className="text-lg shrink-0">
+                        {detail.badge_icon || "🏅"}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-gray-900 truncate">
+                        {detail.student_name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {detail.badge_name}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-400 shrink-0 ml-2">
+                    {DateTime.fromISO(detail.earned_date).toFormat("M/d")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBadgeDetail(false)}
             >
               닫기
             </Button>
