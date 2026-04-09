@@ -25,6 +25,8 @@ export interface BadgeType {
 
 export interface DisplayBadge extends BadgeType {
   count: number;
+  totalStudents: number;
+  earnedStudents: number;
 }
 
 export interface Mission {

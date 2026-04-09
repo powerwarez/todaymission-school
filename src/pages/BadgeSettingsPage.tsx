@@ -92,19 +92,43 @@ function BadgeSettingsPage() {
             "배지 정보를 가져올 수 없습니다."
           );
 
-        // earned_badges는 아직 사용하지 않으므로 빈 배열로 설정
-        const earnedBadgesData: any[] = [];
+        // 3. 학생 수 가져오기
+        const { data: students } = await supabase
+          .from("users")
+          .select("id")
+          .eq("teacher_id", userProfile.id)
+          .eq("role", "student");
 
-        // 4. 배지별 획득 횟수 계산
-        const badgeCounts: { [key: string]: number } = {};
+        const totalStudents = students?.length || 0;
 
-        if (earnedBadgesData) {
-          earnedBadgesData.forEach(
-            (record: { badge_id: string }) => {
-              badgeCounts[record.badge_id] =
-                (badgeCounts[record.badge_id] || 0) + 1;
-            }
-          );
+        // 4. 배지별 획득 학생 수 가져오기
+        const badgeIds = allBadges.map((b) => b.id);
+        let earnedMap: Record<
+          string,
+          Set<string>
+        > = {};
+
+        if (badgeIds.length > 0) {
+          const { data: earnedData } = await supabase
+            .from("student_custom_badges")
+            .select("badge_id, student_id")
+            .in("badge_id", badgeIds);
+
+          if (earnedData) {
+            earnedData.forEach(
+              (row: {
+                badge_id: string;
+                student_id: string;
+              }) => {
+                if (!earnedMap[row.badge_id]) {
+                  earnedMap[row.badge_id] = new Set();
+                }
+                earnedMap[row.badge_id].add(
+                  row.student_id
+                );
+              }
+            );
+          }
         }
 
         // 5. 배지 데이터 준비
@@ -113,7 +137,10 @@ function BadgeSettingsPage() {
         ).map((badge) => {
           return {
             ...badge,
-            count: badgeCounts[badge.id] || 0,
+            count: 0,
+            totalStudents,
+            earnedStudents:
+              earnedMap[badge.id]?.size || 0,
           } as DisplayBadge;
         });
 
@@ -294,9 +321,13 @@ function BadgeSettingsPage() {
       if (insertError) throw insertError;
 
       // 성공 시 목록 업데이트
+      const existingTotal =
+        badges.length > 0 ? badges[0].totalStudents : 0;
       const newDisplayBadge: DisplayBadge = {
         ...(data as BadgeType),
         count: 0,
+        totalStudents: existingTotal,
+        earnedStudents: 0,
       };
       setBadges([...badges, newDisplayBadge]);
 

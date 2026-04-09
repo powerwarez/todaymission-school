@@ -57,7 +57,16 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
               badge.type !== "weekly" &&
               "배지"}
             {" · "}목표: {badge.criteria?.target_count || 1}회
-            달성
+            달성{" · "}
+            <span
+              className={
+                badge.earnedStudents > 0
+                  ? "text-emerald-500 font-medium"
+                  : ""
+              }>
+              {badge.totalStudents}명 중{" "}
+              {badge.earnedStudents}명 달성
+            </span>
           </p>
         </div>
 
