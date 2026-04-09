@@ -579,6 +579,7 @@ const TeacherStatisticsPage: React.FC = () => {
 
       // 시스템 배지 처리
       const systemBadgeNames: Record<string, { name: string; icon: string }> = {
+        daily_mission_complete: { name: "오늘의 미션 달성", icon: "✅" },
         weekly_mission_complete: { name: "주간 미션 달성", icon: "🌟" },
         daily_hero: { name: "오늘의 영웅", icon: "🦸" },
       };

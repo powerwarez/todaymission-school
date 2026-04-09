@@ -16,11 +16,11 @@ export interface BadgeType {
   icon: string;
   teacher_id: string;
   school_id: string;
-  mission_id: string | null;
-  target_count: number;
+  type: string;
+  criteria: BadgeCriteria;
   is_active: boolean;
-  criteria?: BadgeCriteria;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface DisplayBadge extends BadgeType {

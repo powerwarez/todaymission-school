@@ -439,7 +439,7 @@ export const useMissionLogs = (formattedDate: string) => {
             const conditionType =
               badge.criteria?.condition_type || null;
             const targetCount =
-              badge.criteria?.target_count || badge.target_count || 1;
+              badge.criteria?.target_count || 1;
 
             let completedCount = 0;
 
@@ -466,9 +466,9 @@ export const useMissionLogs = (formattedDate: string) => {
               // 주간 미션 체크는 별도 로직으로 처리 (주간 완료 횟수)
               // weekly_complete은 addLog에서 즉시 체크하기 어려우므로 skip
               continue;
-            } else if (!conditionType && badge.mission_id) {
-              // 레거시: criteria 없이 mission_id만 있는 경우
-              if (badge.mission_id !== missionId) continue;
+            } else if (!conditionType && badge.criteria?.mission_id) {
+              // 레거시: condition_type 없이 criteria.mission_id만 있는 경우
+              if (badge.criteria.mission_id !== missionId) continue;
               const { data: logs } = await supabase
                 .from("mission_logs")
                 .select("id", { count: "exact" })

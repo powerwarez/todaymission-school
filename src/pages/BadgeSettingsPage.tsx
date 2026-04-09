@@ -263,16 +263,18 @@ function BadgeSettingsPage() {
       const isSpecificMission =
         conditionType === "specific_mission";
 
+      const badgeType =
+        conditionType === "weekly_complete"
+          ? "weekly"
+          : "special";
+
       const badgeInsertData = {
         name: newBadge.name,
         description: newBadge.description,
         icon: finalImagePath,
         teacher_id: userProfile.id,
         school_id: userProfile.school_id,
-        mission_id: isSpecificMission
-          ? newBadge.mission_id
-          : null,
-        target_count: newBadge.targetCount,
+        type: badgeType,
         is_active: true,
         criteria: {
           condition_type: conditionType,

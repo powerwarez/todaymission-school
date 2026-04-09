@@ -51,12 +51,13 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
             {badge.criteria?.condition_type ===
               "weekly_complete" && "주간 미션"}
             {!badge.criteria?.condition_type &&
-              badge.mission_id &&
-              "특정 미션"}
+              badge.type === "weekly" &&
+              "주간 배지"}
             {!badge.criteria?.condition_type &&
-              !badge.mission_id &&
-              "시스템 배지"}
-            {" · "}목표: {badge.target_count}회 달성
+              badge.type !== "weekly" &&
+              "배지"}
+            {" · "}목표: {badge.criteria?.target_count || 1}회
+            달성
           </p>
         </div>
 

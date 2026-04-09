@@ -270,7 +270,7 @@ export const useWeeklyCompletionStatus = () => {
               if (weeklyBadges) {
                 for (const badge of weeklyBadges) {
                   if (badge.criteria?.condition_type !== "weekly_complete") continue;
-                  const target = badge.criteria?.target_count || badge.target_count || 1;
+                  const target = badge.criteria?.target_count || 1;
 
                   // 전체 주간 달성 횟수 조회
                   const { data: allSystemBadges } = await supabase
