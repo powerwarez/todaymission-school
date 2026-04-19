@@ -44,8 +44,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!authUser) return null;
 
     try {
-      console.log("Fetching user profile for auth_uid:", authUser.id);
-
       // 먼저 기본 사용자 정보를 가져옵니다
       const { data: userData, error: userError } = await supabase
         .from("users")
@@ -97,7 +95,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         teacher: teacherData,
       };
 
-      console.log("User profile fetched:", userWithRelations);
       return userWithRelations;
     } catch (err) {
       console.error("Failed to fetch user profile:", err);
@@ -211,8 +208,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // 프로필 fetch는 별도 useEffect에서 user.id 변경 시에만 실행한다.
         const { data } = supabase.auth.onAuthStateChange(
           (_event: AuthChangeEvent, session: Session | null) => {
-            console.log("Auth state changed:", _event);
-
             if (_event === "SIGNED_OUT" || !session) {
               setSession(null);
               setUser(null);

@@ -15,16 +15,16 @@ import { Button } from "../components/ui/button";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 
-// 한글 폰트 등록
+// 한글 폰트 등록 (프로젝트 내 public/fonts 에서 자체 호스팅하여 CORS 이슈 방지)
 Font.register({
   family: "NotoSansKR",
   fonts: [
     {
-      src: "https://fonts.gstatic.com/ea/notosanskr/v2/NotoSansKR-Regular.woff2",
+      src: `${window.location.origin}/fonts/NotoSansKR-Regular.ttf`,
       fontWeight: 400,
     },
     {
-      src: "https://fonts.gstatic.com/ea/notosanskr/v2/NotoSansKR-Bold.woff2",
+      src: `${window.location.origin}/fonts/NotoSansKR-Bold.ttf`,
       fontWeight: 700,
     },
   ],

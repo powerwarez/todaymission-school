@@ -155,9 +155,6 @@ const TeacherStatisticsPage: React.FC = () => {
   }, [userProfile]);
 
   useEffect(() => {
-    console.log("TeacherStatisticsPage - userProfile:", userProfile);
-    console.log("TeacherStatisticsPage - selectedPeriod:", selectedPeriod);
-
     if (userProfile?.id) {
       if (selectedPeriod === "custom" && (!customStartDate || !customEndDate)) {
         return;
@@ -190,13 +187,7 @@ const TeacherStatisticsPage: React.FC = () => {
   }, [userProfile, selectedPeriod]);
 
   const fetchStatistics = async () => {
-    console.log("fetchStatistics - Starting with:", {
-      userId: userProfile?.id,
-      schoolId: userProfile?.school_id,
-    });
-
     if (!userProfile?.id || !userProfile?.school_id) {
-      console.log("fetchStatistics - Missing required data, stopping");
       setLoading(false);
       return;
     }
@@ -295,15 +286,6 @@ const TeacherStatisticsPage: React.FC = () => {
 
       // Combine both badge types
       const earnedBadges = [...(systemBadges || []), ...(customBadges || [])];
-
-      console.log("Badge counts:", {
-        systemBadges: systemBadges?.length || 0,
-        customBadges: customBadges?.length || 0,
-        totalBadges: earnedBadges.length,
-        studentIds,
-        startDate: startDate.toFormat("yyyy-MM-dd"),
-        periodType: selectedPeriod,
-      });
 
       // Calculate student statistics
       const studentStatsMap = new Map<string, StudentStats>();
