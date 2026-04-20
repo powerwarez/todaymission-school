@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import QRCode from "qrcode";
 import {
   Document,
@@ -7,7 +7,7 @@ import {
   View,
   Image,
   StyleSheet,
-  PDFDownloadLink,
+  pdf,
   Font,
 } from "@react-pdf/renderer";
 import { StudentCreationResult } from "../types/index";
@@ -213,89 +213,76 @@ const StudentQRCodesPDF: React.FC<
   consentChecked = false,
   studentAppUrl = STUDENT_APP_URL,
 }) => {
-  const [qrCodes, setQrCodes] = useState<{
-    [key: string]: string;
-  }>({});
-  const [generating, setGenerating] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const generateQRCodes = async () => {
-      const codes: { [key: string]: string } = {};
+  const handleDownload = async () => {
+    if (!consentChecked) {
+      toast.error(
+        "개인정보 이용 동의서를 모두 받았습니다를 체크해주세요."
+      );
+      return;
+    }
+
+    if (students.length === 0) {
+      toast.error("다운로드할 학생이 없습니다.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const qrCodes: { [key: string]: string } = {};
 
       for (const student of students) {
-        try {
-          const loginUrl = `${studentAppUrl}?qr_token=${encodeURIComponent(student.qr_token)}`;
+        const loginUrl = `${studentAppUrl}?qr_token=${encodeURIComponent(student.qr_token)}`;
 
-          const qrCodeDataURL = await QRCode.toDataURL(
-            loginUrl,
-            {
-              width: 300,
-              margin: 2,
-              color: {
-                dark: "#000000",
-                light: "#ffffff",
-              },
-            }
-          );
+        const qrCodeDataURL = await QRCode.toDataURL(loginUrl, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: "#000000",
+            light: "#ffffff",
+          },
+        });
 
-          codes[student.student_id] = qrCodeDataURL;
-        } catch (err) {
-          console.error("Error generating QR code:", err);
-        }
+        qrCodes[student.student_id] = qrCodeDataURL;
       }
 
-      setQrCodes(codes);
-      setGenerating(false);
-    };
-
-    if (students.length > 0) {
-      generateQRCodes();
-    }
-  }, [students, studentAppUrl]);
-
-  if (generating) {
-    return (
-      <Button disabled>
-        <Download className="mr-2 h-4 w-4" />
-        QR 코드 생성 중...
-      </Button>
-    );
-  }
-
-  return (
-    <PDFDownloadLink
-      document={
+      const blob = await pdf(
         <QRCodeDocument
           students={students}
           schoolName={schoolName}
           className={className}
           qrCodes={qrCodes}
         />
-      }
-      fileName={`${schoolName}_학생_QR코드.pdf`}>
-      {({ loading }) => (
-        <Button
-          disabled={loading || !consentChecked}
-          onClick={(e) => {
-            if (!consentChecked) {
-              e.preventDefault();
-              toast.error(
-                "개인정보 이용 동의서를 모두 받았습니다를 체크해주세요."
-              );
-            }
-          }}
-          className={
-            !consentChecked
-              ? "opacity-50 cursor-not-allowed"
-              : ""
-          }>
-          <Download className="mr-2 h-4 w-4" />
-          {loading
-            ? "PDF 생성 중..."
-            : "학생 로그인 안내장 다운로드"}
-        </Button>
-      )}
-    </PDFDownloadLink>
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${schoolName}_학생_QR코드.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF 생성 오류:", err);
+      toast.error("PDF 생성 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      disabled={loading || !consentChecked}
+      onClick={handleDownload}
+      className={
+        !consentChecked ? "opacity-50 cursor-not-allowed" : ""
+      }>
+      <Download className="mr-2 h-4 w-4" />
+      {loading ? "PDF 생성 중..." : "학생 로그인 안내장 다운로드"}
+    </Button>
   );
 };
 

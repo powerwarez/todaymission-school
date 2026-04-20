@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Document,
   Page,
@@ -6,10 +6,11 @@ import {
   View,
   StyleSheet,
   Font,
-  PDFDownloadLink,
+  pdf,
 } from "@react-pdf/renderer";
 import { Button } from "./ui/button";
 import { FileText } from "lucide-react";
+import { toast } from "sonner";
 
 // 한글 폰트 등록 (프로젝트 내 public/fonts 에서 자체 호스팅하여 CORS 이슈 방지)
 Font.register({
@@ -313,24 +314,43 @@ interface PrivacyConsentPDFButtonProps {
 export const PrivacyConsentPDFButton: React.FC<
   PrivacyConsentPDFButtonProps
 > = ({ schoolName = "학교", className = "학급" }) => {
-  return (
-    <PDFDownloadLink
-      document={
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = async () => {
+    setLoading(true);
+
+    try {
+      const blob = await pdf(
         <PrivacyConsentDocument
           schoolName={schoolName}
           className={className}
         />
-      }
-      fileName={`개인정보_이용_동의서_${schoolName}.pdf`}>
-      {({ loading }) => (
-        <Button variant="outline" disabled={loading}>
-          <FileText className="mr-2 h-4 w-4" />
-          {loading
-            ? "PDF 생성 중..."
-            : "개인정보 동의서 다운로드"}
-        </Button>
-      )}
-    </PDFDownloadLink>
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `개인정보_이용_동의서_${schoolName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF 생성 오류:", err);
+      toast.error("PDF 생성 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="outline"
+      disabled={loading}
+      onClick={handleDownload}>
+      <FileText className="mr-2 h-4 w-4" />
+      {loading ? "PDF 생성 중..." : "개인정보 동의서 다운로드"}
+    </Button>
   );
 };
 
