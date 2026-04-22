@@ -202,6 +202,10 @@ const TeacherStatisticsPage: React.FC = () => {
         case "today":
           startDate = now.startOf("day");
           break;
+        case "yesterday":
+          startDate = now.minus({ days: 1 }).startOf("day");
+          endDate = now.minus({ days: 1 }).endOf("day");
+          break;
         case "week":
           startDate = now.startOf("week");
           break;
@@ -254,12 +258,15 @@ const TeacherStatisticsPage: React.FC = () => {
         .eq("is_active", true);
 
       const studentIds = students.map((s) => s.id);
+      const hasExplicitEndDate =
+        selectedPeriod === "custom" || selectedPeriod === "yesterday";
+
       let missionLogsQuery = supabase
         .from("mission_logs")
         .select("student_id, mission_id, completed_at")
         .in("student_id", studentIds)
         .gte("completed_at", startDate.toISO());
-      if (selectedPeriod === "custom") {
+      if (hasExplicitEndDate) {
         missionLogsQuery = missionLogsQuery.lte("completed_at", endDate.toISO());
       }
       const { data: missionLogs } = await missionLogsQuery;
@@ -269,7 +276,7 @@ const TeacherStatisticsPage: React.FC = () => {
         .select("student_id")
         .in("student_id", studentIds)
         .gte("earned_date", startDate.toFormat("yyyy-MM-dd"));
-      if (selectedPeriod === "custom") {
+      if (hasExplicitEndDate) {
         systemBadgesQuery = systemBadgesQuery.lte("earned_date", endDate.toFormat("yyyy-MM-dd"));
       }
       const { data: systemBadges } = await systemBadgesQuery;
@@ -279,7 +286,7 @@ const TeacherStatisticsPage: React.FC = () => {
         .select("student_id")
         .in("student_id", studentIds)
         .gte("earned_date", startDate.toFormat("yyyy-MM-dd"));
-      if (selectedPeriod === "custom") {
+      if (hasExplicitEndDate) {
         customBadgesQuery = customBadgesQuery.lte("earned_date", endDate.toFormat("yyyy-MM-dd"));
       }
       const { data: customBadges } = await customBadgesQuery;
@@ -513,6 +520,10 @@ const TeacherStatisticsPage: React.FC = () => {
         case "today":
           startDate = now.startOf("day");
           break;
+        case "yesterday":
+          startDate = now.minus({ days: 1 }).startOf("day");
+          endDate = now.minus({ days: 1 }).endOf("day");
+          break;
         case "week":
           startDate = now.startOf("week");
           break;
@@ -534,6 +545,8 @@ const TeacherStatisticsPage: React.FC = () => {
       const endDateStr = endDate.toFormat("yyyy-MM-dd");
 
       const studentMap = new Map(studentsCache.map((s) => [s.id, s.name]));
+      const hasExplicitEndDate =
+        selectedPeriod === "custom" || selectedPeriod === "yesterday";
 
       // 시스템 배지 조회
       let sysQuery = supabase
@@ -541,7 +554,7 @@ const TeacherStatisticsPage: React.FC = () => {
         .select("student_id, system_badge_id, earned_date")
         .in("student_id", studentIds)
         .gte("earned_date", startDateStr);
-      if (selectedPeriod === "custom") {
+      if (hasExplicitEndDate) {
         sysQuery = sysQuery.lte("earned_date", endDateStr);
       }
       const { data: sysBadges } = await sysQuery;
@@ -552,7 +565,7 @@ const TeacherStatisticsPage: React.FC = () => {
         .select("student_id, badge_id, earned_date, badges(name, icon)")
         .in("student_id", studentIds)
         .gte("earned_date", startDateStr);
-      if (selectedPeriod === "custom") {
+      if (hasExplicitEndDate) {
         customQuery = customQuery.lte("earned_date", endDateStr);
       }
       const { data: custBadges } = await customQuery;
@@ -626,6 +639,7 @@ const TeacherStatisticsPage: React.FC = () => {
               </SelectTrigger>
               <SelectContent className="bg-white border-gray-300">
                 <SelectItem value="today">오늘</SelectItem>
+                <SelectItem value="yesterday">어제</SelectItem>
                 <SelectItem value="week">이번 주</SelectItem>
                 <SelectItem value="month">이번 달</SelectItem>
                 <SelectItem value="year">올해</SelectItem>
