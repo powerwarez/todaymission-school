@@ -186,6 +186,75 @@ const TeacherStatisticsPage: React.FC = () => {
     };
   }, [userProfile, selectedPeriod]);
 
+  // 선택된 기간을 DateTime 범위로 변환
+  const getPeriodRange = (): {
+    startDate: DateTime;
+    endDate: DateTime;
+    hasExplicitEndDate: boolean;
+    isValid: boolean;
+  } => {
+    const now = DateTime.now();
+    let startDate: DateTime;
+    let endDate: DateTime = now;
+    let hasExplicitEndDate = false;
+
+    switch (selectedPeriod) {
+      case "today":
+        startDate = now.startOf("day");
+        break;
+      case "yesterday":
+        startDate = now.minus({ days: 1 }).startOf("day");
+        endDate = now.minus({ days: 1 }).endOf("day");
+        hasExplicitEndDate = true;
+        break;
+      case "week":
+        startDate = now.startOf("week");
+        break;
+      case "month":
+        startDate = now.startOf("month");
+        break;
+      case "year":
+        startDate = now.startOf("year");
+        break;
+      case "custom":
+        startDate = DateTime.fromISO(customStartDate).startOf("day");
+        endDate = DateTime.fromISO(customEndDate).endOf("day");
+        hasExplicitEndDate = true;
+        if (!startDate.isValid || !endDate.isValid) {
+          return { startDate, endDate, hasExplicitEndDate, isValid: false };
+        }
+        break;
+      default:
+        startDate = now.minus({ days: 7 });
+    }
+
+    return { startDate, endDate, hasExplicitEndDate, isValid: true };
+  };
+
+  // 선택된 기간의 사용자 친화적 라벨
+  const getPeriodLabel = (): string => {
+    switch (selectedPeriod) {
+      case "today":
+        return "오늘";
+      case "yesterday":
+        return "어제";
+      case "week":
+        return "이번 주";
+      case "month":
+        return "이번 달";
+      case "year":
+        return "올해";
+      case "custom": {
+        const s = DateTime.fromISO(customStartDate);
+        const e = DateTime.fromISO(customEndDate);
+        if (!s.isValid || !e.isValid) return "선택 기간";
+        return `${s.toFormat("yyyy-MM-dd")} ~ ${e.toFormat("yyyy-MM-dd")}`;
+      }
+      default:
+        return "선택 기간";
+    }
+  };
+
   const fetchStatistics = async () => {
     if (!userProfile?.id || !userProfile?.school_id) {
       setLoading(false);
@@ -194,37 +263,10 @@ const TeacherStatisticsPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const now = DateTime.now();
-      let startDate: DateTime;
-      let endDate: DateTime = now;
-
-      switch (selectedPeriod) {
-        case "today":
-          startDate = now.startOf("day");
-          break;
-        case "yesterday":
-          startDate = now.minus({ days: 1 }).startOf("day");
-          endDate = now.minus({ days: 1 }).endOf("day");
-          break;
-        case "week":
-          startDate = now.startOf("week");
-          break;
-        case "month":
-          startDate = now.startOf("month");
-          break;
-        case "year":
-          startDate = now.startOf("year");
-          break;
-        case "custom":
-          startDate = DateTime.fromISO(customStartDate).startOf("day");
-          endDate = DateTime.fromISO(customEndDate).endOf("day");
-          if (!startDate.isValid || !endDate.isValid) {
-            setLoading(false);
-            return;
-          }
-          break;
-        default:
-          startDate = now.minus({ days: 7 });
+      const { startDate, endDate, isValid } = getPeriodRange();
+      if (!isValid) {
+        setLoading(false);
+        return;
       }
 
       // Fetch students
@@ -258,8 +300,7 @@ const TeacherStatisticsPage: React.FC = () => {
         .eq("is_active", true);
 
       const studentIds = students.map((s) => s.id);
-      const hasExplicitEndDate =
-        selectedPeriod === "custom" || selectedPeriod === "yesterday";
+      const { hasExplicitEndDate } = getPeriodRange();
 
       let missionLogsQuery = supabase
         .from("mission_logs")
@@ -405,7 +446,13 @@ const TeacherStatisticsPage: React.FC = () => {
     setMissionCompletionDetails([]);
 
     try {
-      const todayStart = DateTime.now().startOf("day").toISO();
+      const { startDate, endDate, hasExplicitEndDate, isValid } =
+        getPeriodRange();
+      if (!isValid) {
+        setLoadingMissionDetail(false);
+        return;
+      }
+
       const studentIds = studentsCache.map((s) => s.id);
 
       if (studentIds.length === 0) {
@@ -414,16 +461,24 @@ const TeacherStatisticsPage: React.FC = () => {
         return;
       }
 
-      const { data: logs } = await supabase
+      let logsQuery = supabase
         .from("mission_logs")
         .select("student_id, completed_at")
         .eq("mission_id", mission.mission_id)
         .in("student_id", studentIds)
-        .gte("completed_at", todayStart);
+        .gte("completed_at", startDate.toISO());
+      if (hasExplicitEndDate) {
+        logsQuery = logsQuery.lte("completed_at", endDate.toISO());
+      }
+      const { data: logs } = await logsQuery;
 
+      // 기간 내 한 번이라도 완료했으면 completed, completed_at은 가장 최근 시각으로
       const completedMap = new Map<string, string>();
       logs?.forEach((log) => {
-        completedMap.set(log.student_id, log.completed_at);
+        const prev = completedMap.get(log.student_id);
+        if (!prev || log.completed_at > prev) {
+          completedMap.set(log.student_id, log.completed_at);
+        }
       });
 
       const details: MissionCompletionDetail[] = studentsCache.map(
@@ -457,7 +512,12 @@ const TeacherStatisticsPage: React.FC = () => {
     setStudentMissionDetails([]);
 
     try {
-      const todayStart = DateTime.now().startOf("day").toISO();
+      const { startDate, endDate, hasExplicitEndDate, isValid } =
+        getPeriodRange();
+      if (!isValid) {
+        setLoadingStudentDetail(false);
+        return;
+      }
 
       const { data: missions } = await supabase
         .from("missions")
@@ -472,15 +532,23 @@ const TeacherStatisticsPage: React.FC = () => {
         return;
       }
 
-      const { data: logs } = await supabase
+      let logsQuery = supabase
         .from("mission_logs")
         .select("mission_id, completed_at")
         .eq("student_id", student.student_id)
-        .gte("completed_at", todayStart);
+        .gte("completed_at", startDate.toISO());
+      if (hasExplicitEndDate) {
+        logsQuery = logsQuery.lte("completed_at", endDate.toISO());
+      }
+      const { data: logs } = await logsQuery;
 
+      // 기간 내 한 번이라도 완료했으면 completed, completed_at은 가장 최근 시각으로
       const logMap = new Map<string, string>();
       logs?.forEach((log) => {
-        logMap.set(log.mission_id, log.completed_at);
+        const prev = logMap.get(log.mission_id);
+        if (!prev || log.completed_at > prev) {
+          logMap.set(log.mission_id, log.completed_at);
+        }
       });
 
       const details: StudentMissionDetail[] = missions.map((mission) => ({
@@ -512,41 +580,17 @@ const TeacherStatisticsPage: React.FC = () => {
         return;
       }
 
-      const now = DateTime.now();
-      let startDate: DateTime;
-      let endDate: DateTime = now;
-
-      switch (selectedPeriod) {
-        case "today":
-          startDate = now.startOf("day");
-          break;
-        case "yesterday":
-          startDate = now.minus({ days: 1 }).startOf("day");
-          endDate = now.minus({ days: 1 }).endOf("day");
-          break;
-        case "week":
-          startDate = now.startOf("week");
-          break;
-        case "month":
-          startDate = now.startOf("month");
-          break;
-        case "year":
-          startDate = now.startOf("year");
-          break;
-        case "custom":
-          startDate = DateTime.fromISO(customStartDate).startOf("day");
-          endDate = DateTime.fromISO(customEndDate).endOf("day");
-          break;
-        default:
-          startDate = now.minus({ days: 7 });
+      const { startDate, endDate, hasExplicitEndDate, isValid } =
+        getPeriodRange();
+      if (!isValid) {
+        setLoadingBadgeDetail(false);
+        return;
       }
 
       const startDateStr = startDate.toFormat("yyyy-MM-dd");
       const endDateStr = endDate.toFormat("yyyy-MM-dd");
 
       const studentMap = new Map(studentsCache.map((s) => [s.id, s.name]));
-      const hasExplicitEndDate =
-        selectedPeriod === "custom" || selectedPeriod === "yesterday";
 
       // 시스템 배지 조회
       let sysQuery = supabase
@@ -814,7 +858,7 @@ const TeacherStatisticsPage: React.FC = () => {
           <CardHeader>
             <CardTitle>미션별 통계</CardTitle>
             <CardDescription>
-              각 미션의 수행 현황 (클릭하면 오늘의 달성 현황을 확인할 수 있습니다)
+              각 미션의 수행 현황 (클릭하면 {getPeriodLabel()} 달성 현황을 확인할 수 있습니다)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -872,7 +916,9 @@ const TeacherStatisticsPage: React.FC = () => {
               <Target className="h-5 w-5 text-purple-600" />
               {selectedMission?.mission_title}
             </DialogTitle>
-            <DialogDescription>오늘의 달성 현황</DialogDescription>
+            <DialogDescription>
+              {getPeriodLabel()} 달성 현황
+            </DialogDescription>
           </DialogHeader>
 
           {loadingMissionDetail ? (
@@ -980,7 +1026,9 @@ const TeacherStatisticsPage: React.FC = () => {
               <Users className="h-5 w-5 text-blue-600" />
               {selectedStudent?.student_name}
             </DialogTitle>
-            <DialogDescription>오늘의 미션 달성 현황</DialogDescription>
+            <DialogDescription>
+              {getPeriodLabel()} 미션 달성 현황
+            </DialogDescription>
           </DialogHeader>
 
           {loadingStudentDetail ? (
