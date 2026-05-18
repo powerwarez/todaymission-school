@@ -444,6 +444,17 @@ export const useMissionLogs = (formattedDate: string) => {
             let completedCount = 0;
 
             if (
+              conditionType === "daily_any" ||
+              (!conditionType &&
+                badge.criteria?.mission_id === "system_daily_complete")
+            ) {
+              // 누적 미션 달성 횟수 체크 (모든 미션 합산)
+              const { data: logs } = await supabase
+                .from("mission_logs")
+                .select("id")
+                .eq("student_id", userProfile.id);
+              completedCount = logs?.length || 0;
+            } else if (
               conditionType === "specific_mission" &&
               badge.criteria?.mission_id
             ) {
@@ -451,27 +462,23 @@ export const useMissionLogs = (formattedDate: string) => {
               if (badge.criteria.mission_id !== missionId) continue;
               const { data: logs } = await supabase
                 .from("mission_logs")
-                .select("id", { count: "exact" })
+                .select("id")
                 .eq("student_id", userProfile.id)
                 .eq("mission_id", missionId);
               completedCount = logs?.length || 0;
-            } else if (conditionType === "daily_any") {
-              // 오늘의 미션 전체 달성 횟수 체크 (아무 미션이나)
-              const { data: logs } = await supabase
-                .from("mission_logs")
-                .select("id", { count: "exact" })
-                .eq("student_id", userProfile.id);
-              completedCount = logs?.length || 0;
             } else if (conditionType === "weekly_complete") {
-              // 주간 미션 체크는 별도 로직으로 처리 (주간 완료 횟수)
-              // weekly_complete은 addLog에서 즉시 체크하기 어려우므로 skip
+              // 주간 미션 체크는 별도 로직에서 처리
               continue;
-            } else if (!conditionType && badge.criteria?.mission_id) {
-              // 레거시: condition_type 없이 criteria.mission_id만 있는 경우
+            } else if (
+              !conditionType &&
+              badge.criteria?.mission_id &&
+              badge.criteria.mission_id !== "system_daily_complete"
+            ) {
+              // 레거시: condition_type 없이 특정 mission_id만 있는 경우
               if (badge.criteria.mission_id !== missionId) continue;
               const { data: logs } = await supabase
                 .from("mission_logs")
-                .select("id", { count: "exact" })
+                .select("id")
                 .eq("student_id", userProfile.id)
                 .eq("mission_id", missionId);
               completedCount = logs?.length || 0;
