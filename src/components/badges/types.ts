@@ -47,5 +47,7 @@ export interface StudentBadgeRow {
 export interface StudentListItem {
   student_id: string;
   student_name: string;
-  earned_date: string;
+  earned_date: string | null; // null = 아직 미달성
+  current_count: number;      // 현재 달성 횟수
+  target_count: number;       // 배지 목표 횟수
 }

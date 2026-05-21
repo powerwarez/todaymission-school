@@ -422,35 +422,85 @@ function BadgeSettingsPage() {
     setDeletingBadgeId(null);
   };
 
-  // 배지 클릭 핸들러 (학생 목록 표시)
+  // 배지 클릭 핸들러 (전체 학생 목록 + 진행률 표시)
   const handleBadgeClick = async (badge: DisplayBadge) => {
     setSelectedBadgeForList(badge);
     setShowStudentList(true);
     setLoadingStudentList(true);
 
     try {
-      const { data, error } = await supabase
+      // 1. 전체 학생 목록 (등록 순서대로)
+      const { data: allStudents, error: studentsError } = await supabase
+        .from("users")
+        .select("id, name, created_at")
+        .eq("teacher_id", userProfile!.id)
+        .eq("role", "student")
+        .order("created_at", { ascending: true });
+
+      if (studentsError) throw studentsError;
+      if (!allStudents || allStudents.length === 0) {
+        setStudentList([]);
+        return;
+      }
+
+      const studentIds = allStudents.map((s) => s.id);
+
+      // 2. 이 배지를 획득한 학생 조회
+      const { data: earnedData, error: earnedError } = await supabase
         .from("student_custom_badges")
-        .select(
-          `
-          student_id,
-          earned_date,
-          users!student_custom_badges_student_id_fkey(name)
-        `
-        )
-        .eq("badge_id", badge.id)
-        .order("earned_date", { ascending: false });
+        .select("student_id, earned_date")
+        .eq("badge_id", badge.id);
 
-      if (error) throw error;
+      if (earnedError) throw earnedError;
 
-      const formattedData =
-        (data as unknown as StudentBadgeRow[])?.map(
-          (item) => ({
-            student_id: item.student_id,
-            student_name: item.users?.name || "알 수 없음",
-            earned_date: item.earned_date,
-          })
-        ) || [];
+      const earnedMap = new Map<string, string>(
+        earnedData?.map((e) => [e.student_id, e.earned_date]) || []
+      );
+
+      // 3. 진행률 계산: 조건 유형에 따라 미션 달성 횟수 조회
+      const conditionType = badge.criteria?.condition_type;
+      const missionId = badge.criteria?.mission_id;
+      const targetCount = badge.criteria?.target_count || 1;
+      const countMap = new Map<string, number>();
+
+      const useAllMissions =
+        conditionType === "daily_any" ||
+        (!conditionType && missionId === "system_daily_complete");
+
+      const useSpecificMission =
+        conditionType === "specific_mission" ||
+        (!conditionType &&
+          missionId &&
+          missionId !== "system_daily_complete");
+
+      if (useAllMissions || useSpecificMission) {
+        // 학생별 카운트를 병렬로 조회 (페이지 제한 우회)
+        const countPromises = studentIds.map(async (sid) => {
+          let q = supabase
+            .from("mission_logs")
+            .select("id", { count: "exact", head: true })
+            .eq("student_id", sid);
+
+          if (useSpecificMission && missionId) {
+            q = q.eq("mission_id", missionId);
+          }
+
+          const { count } = await q;
+          return { sid, count: count || 0 };
+        });
+
+        const results = await Promise.all(countPromises);
+        results.forEach(({ sid, count }) => countMap.set(sid, count));
+      }
+
+      // 4. 학생 목록 구성 (등록 순 유지)
+      const formattedData: StudentListItem[] = allStudents.map((student) => ({
+        student_id: student.id,
+        student_name: student.name,
+        earned_date: earnedMap.get(student.id) ?? null,
+        current_count: countMap.get(student.id) ?? 0,
+        target_count: targetCount,
+      }));
 
       setStudentList(formattedData);
     } catch (err) {
