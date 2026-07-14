@@ -1,12 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { LuX, LuCheck } from "react-icons/lu";
+import { toast } from "sonner";
 import { DisplayBadge, StudentListItem } from "./types";
 import { DateTime } from "luxon";
+import {
+  fetchCandyGivenStudents,
+  markCandyGiven,
+} from "../../utils/candyGivenStorage";
 
 interface StudentListModalProps {
   badge: DisplayBadge;
   studentList: StudentListItem[];
   isLoading: boolean;
+  teacherId: string;
   onClose: () => void;
 }
 
@@ -61,14 +67,95 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   );
 };
 
+function isFullyAchieved(student: StudentListItem): boolean {
+  if (student.target_count <= 0) return student.earned_date !== null;
+  return student.current_count >= student.target_count;
+}
+
+const CandyIcon: React.FC = () => (
+  <svg
+    viewBox="0 0 24 24"
+    className="h-4 w-4 shrink-0"
+    aria-hidden="true">
+    <ellipse cx="7" cy="12" rx="5" ry="7" fill="#f472b6" />
+    <ellipse cx="17" cy="12" rx="5" ry="7" fill="#f472b6" />
+    <rect x="7" y="9" width="10" height="6" rx="1" fill="#ec4899" />
+    <path
+      d="M2 12 Q4 9 7 12 Q4 15 2 12"
+      fill="#fda4af"
+      stroke="#fb7185"
+      strokeWidth="0.5"
+    />
+    <path
+      d="M22 12 Q20 9 17 12 Q20 15 22 12"
+      fill="#fda4af"
+      stroke="#fb7185"
+      strokeWidth="0.5"
+    />
+  </svg>
+);
+
 export const StudentListModal: React.FC<StudentListModalProps> = ({
   badge,
   studentList,
   isLoading,
+  teacherId,
   onClose,
 }) => {
+  const [candyGiven, setCandyGiven] = useState<Set<string>>(new Set());
+  const [loadingCandy, setLoadingCandy] = useState(true);
+  const [markingCandyId, setMarkingCandyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCandyGiven = async () => {
+      setLoadingCandy(true);
+      try {
+        const given = await fetchCandyGivenStudents(badge.id);
+        if (!cancelled) setCandyGiven(given);
+      } catch (err) {
+        console.error("사탕 지급 기록 로드 오류:", err);
+        if (!cancelled) {
+          toast.error("사탕 지급 기록을 불러오지 못했습니다.");
+        }
+      } finally {
+        if (!cancelled) setLoadingCandy(false);
+      }
+    };
+
+    loadCandyGiven();
+    return () => {
+      cancelled = true;
+    };
+  }, [badge.id]);
+
+  const handleCandyClick = async (studentId: string) => {
+    if (markingCandyId) return;
+
+    setMarkingCandyId(studentId);
+    setCandyGiven((prev) => new Set([...prev, studentId]));
+
+    try {
+      await markCandyGiven(badge.id, studentId, teacherId);
+    } catch (err) {
+      console.error("사탕 지급 기록 저장 오류:", err);
+      setCandyGiven((prev) => {
+        const next = new Set(prev);
+        next.delete(studentId);
+        return next;
+      });
+      toast.error("사탕 지급 완료 표시에 실패했습니다.");
+    } finally {
+      setMarkingCandyId(null);
+    }
+  };
+
   const earnedCount = studentList.filter((s) => s.earned_date !== null).length;
   const totalCount = studentList.length;
+  const pendingCandyCount = studentList.filter(
+    (s) => isFullyAchieved(s) && !candyGiven.has(s.student_id)
+  ).length;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -121,6 +208,11 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
                 {studentList.map((student) => {
                   const earned = student.earned_date !== null;
                   const recent = isRecent(student.earned_date);
+                  const fullyAchieved = isFullyAchieved(student);
+                  const showCandy =
+                    fullyAchieved &&
+                    !candyGiven.has(student.student_id) &&
+                    !loadingCandy;
                   return (
                     <tr
                       key={student.student_id}
@@ -143,6 +235,19 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
                             <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-orange-100 text-orange-600 leading-none shrink-0">
                               NEW
                             </span>
+                          )}
+                          {showCandy && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCandyClick(student.student_id)
+                              }
+                              disabled={markingCandyId === student.student_id}
+                              title="클릭하면 사탕 지급 완료로 표시됩니다"
+                              className="ml-0.5 p-0.5 rounded hover:bg-pink-50 transition-colors shrink-0 disabled:opacity-50"
+                              aria-label={`${student.student_name} 사탕 지급 완료 표시`}>
+                              <CandyIcon />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -169,16 +274,28 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
         )}
 
         {/* 푸터 요약 */}
-        <div className="mt-4 pt-4 border-t flex items-center justify-center gap-3 text-sm text-gray-600">
-          <span>
-            총{" "}
-            <strong className="text-gray-800">{totalCount}</strong>명 중{" "}
-            <strong className="text-emerald-600">{earnedCount}</strong>명 달성
-          </span>
-          {totalCount > 0 && (
-            <span className="text-gray-400">
-              ({Math.round((earnedCount / totalCount) * 100)}%)
+        <div className="mt-4 pt-4 border-t flex flex-col items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center justify-center gap-3">
+            <span>
+              총{" "}
+              <strong className="text-gray-800">{totalCount}</strong>명 중{" "}
+              <strong className="text-emerald-600">{earnedCount}</strong>명 달성
             </span>
+            {totalCount > 0 && (
+              <span className="text-gray-400">
+                ({Math.round((earnedCount / totalCount) * 100)}%)
+              </span>
+            )}
+          </div>
+          {pendingCandyCount > 0 && !loadingCandy && (
+            <p className="flex items-center gap-1.5 text-xs text-pink-600">
+              <CandyIcon />
+              <span>
+                사탕 미지급{" "}
+                <strong>{pendingCandyCount}</strong>명 — 아이콘을 클릭하면
+                지급 완료로 표시됩니다
+              </span>
+            </p>
           )}
         </div>
       </div>

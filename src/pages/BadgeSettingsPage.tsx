@@ -627,11 +627,12 @@ function BadgeSettingsPage() {
       )}
 
       {/* 학생 목록 모달 */}
-      {showStudentList && selectedBadgeForList && (
+      {showStudentList && selectedBadgeForList && userProfile && (
         <StudentListModal
           badge={selectedBadgeForList}
           studentList={studentList}
           isLoading={loadingStudentList}
+          teacherId={userProfile.id}
           onClose={handleCloseStudentList}
         />
       )}
