@@ -108,6 +108,8 @@ function BadgeSettingsPage() {
           Set<string>
         > = {};
 
+        const candyMap: Record<string, Set<string>> = {};
+
         if (badgeIds.length > 0) {
           const { data: earnedData } = await supabase
             .from("student_custom_badges")
@@ -129,18 +131,44 @@ function BadgeSettingsPage() {
               }
             );
           }
+
+          const { data: candyData } = await supabase
+            .from("badge_candy_rewards")
+            .select("badge_id, student_id")
+            .in("badge_id", badgeIds);
+
+          if (candyData) {
+            candyData.forEach(
+              (row: {
+                badge_id: string;
+                student_id: string;
+              }) => {
+                if (!candyMap[row.badge_id]) {
+                  candyMap[row.badge_id] = new Set();
+                }
+                candyMap[row.badge_id].add(row.student_id);
+              }
+            );
+          }
         }
 
         // 5. 배지 데이터 준비
         const displayData: DisplayBadge[] = (
           allBadges as BadgeType[]
         ).map((badge) => {
+          const earned = earnedMap[badge.id] ?? new Set<string>();
+          const given = candyMap[badge.id] ?? new Set<string>();
+          let pendingCandyStudents = 0;
+          earned.forEach((studentId) => {
+            if (!given.has(studentId)) pendingCandyStudents += 1;
+          });
+
           return {
             ...badge,
             count: 0,
             totalStudents,
-            earnedStudents:
-              earnedMap[badge.id]?.size || 0,
+            earnedStudents: earned.size,
+            pendingCandyStudents,
           } as DisplayBadge;
         });
 
@@ -328,6 +356,7 @@ function BadgeSettingsPage() {
         count: 0,
         totalStudents: existingTotal,
         earnedStudents: 0,
+        pendingCandyStudents: 0,
       };
       setBadges([...badges, newDisplayBadge]);
 
@@ -519,6 +548,22 @@ function BadgeSettingsPage() {
     setStudentList([]);
   };
 
+  const handleCandyMarked = (badgeId: string) => {
+    setBadges((prev) =>
+      prev.map((badge) =>
+        badge.id === badgeId
+          ? {
+              ...badge,
+              pendingCandyStudents: Math.max(
+                0,
+                badge.pendingCandyStudents - 1
+              ),
+            }
+          : badge
+      )
+    );
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex flex-col">
@@ -582,6 +627,22 @@ function BadgeSettingsPage() {
               달성 가능한 도전과제 목록
             </h2>
 
+            {badges.some((badge) => badge.pendingCandyStudents > 0) && (
+              <div className="flex items-center justify-center gap-2 rounded-lg border border-pink-200 bg-pink-50 px-4 py-2.5 text-sm text-pink-700">
+                <span aria-hidden="true">🍬</span>
+                <span>
+                  사탕을 아직 받지 않은 달성이{" "}
+                  <strong>
+                    {badges.reduce(
+                      (sum, badge) => sum + badge.pendingCandyStudents,
+                      0
+                    )}
+                  </strong>
+                  건 있습니다. 분홍 표시가 있는 도전과제를 눌러 지급해 주세요.
+                </span>
+              </div>
+            )}
+
             {badges.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 아직 생성된 도전과제가 없습니다. "새 도전과제
@@ -634,6 +695,7 @@ function BadgeSettingsPage() {
           isLoading={loadingStudentList}
           teacherId={userProfile.id}
           onClose={handleCloseStudentList}
+          onCandyMarked={handleCandyMarked}
         />
       )}
     </div>

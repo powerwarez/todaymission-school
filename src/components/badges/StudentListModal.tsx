@@ -14,6 +14,7 @@ interface StudentListModalProps {
   isLoading: boolean;
   teacherId: string;
   onClose: () => void;
+  onCandyMarked?: (badgeId: string) => void;
 }
 
 const RECENT_DAYS = 7;
@@ -101,6 +102,7 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
   isLoading,
   teacherId,
   onClose,
+  onCandyMarked,
 }) => {
   const [candyGiven, setCandyGiven] = useState<Set<string>>(new Set());
   const [loadingCandy, setLoadingCandy] = useState(true);
@@ -138,6 +140,7 @@ export const StudentListModal: React.FC<StudentListModalProps> = ({
 
     try {
       await markCandyGiven(badge.id, studentId, teacherId);
+      onCandyMarked?.(badge.id);
     } catch (err) {
       console.error("사탕 지급 기록 저장 오류:", err);
       setCandyGiven((prev) => {

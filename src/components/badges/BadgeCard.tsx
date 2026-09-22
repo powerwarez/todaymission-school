@@ -68,6 +68,12 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
               {badge.earnedStudents}명 달성
             </span>
           </p>
+          {badge.pendingCandyStudents > 0 && (
+            <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-pink-50 px-2 py-0.5 text-xs font-medium text-pink-600">
+              <span aria-hidden="true">🍬</span>
+              사탕 미수령 {badge.pendingCandyStudents}명
+            </p>
+          )}
         </div>
 
         {/* 달성 횟수 표시 */}
