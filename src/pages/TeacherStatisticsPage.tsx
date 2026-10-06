@@ -41,6 +41,10 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { DateTime } from "luxon";
+import {
+  findMissingDailyMissionBadges,
+  persistMissingDailyMissionBadges,
+} from "../utils/dailyMissionBadges";
 
 interface StudentStats {
   student_id: string;
@@ -314,13 +318,20 @@ const TeacherStatisticsPage: React.FC = () => {
 
       let systemBadgesQuery = supabase
         .from("student_system_badges")
-        .select("student_id")
+        .select("student_id, system_badge_id, earned_date")
         .in("student_id", studentIds)
         .gte("earned_date", startDate.toFormat("yyyy-MM-dd"));
       if (hasExplicitEndDate) {
         systemBadgesQuery = systemBadgesQuery.lte("earned_date", endDate.toFormat("yyyy-MM-dd"));
       }
       const { data: systemBadges } = await systemBadgesQuery;
+
+      const missingDailyBadges = findMissingDailyMissionBadges(
+        (missions ?? []).map((mission) => mission.id),
+        missionLogs ?? [],
+        systemBadges ?? []
+      );
+      await persistMissingDailyMissionBadges(missingDailyBadges);
 
       let customBadgesQuery = supabase
         .from("student_custom_badges")
@@ -361,6 +372,12 @@ const TeacherStatisticsPage: React.FC = () => {
 
       // Count badges
       earnedBadges?.forEach((badge) => {
+        const stats = studentStatsMap.get(badge.student_id);
+        if (stats) {
+          stats.badges_earned += 1;
+        }
+      });
+      missingDailyBadges.forEach((badge) => {
         const stats = studentStatsMap.get(badge.student_id);
         if (stats) {
           stats.badges_earned += 1;
@@ -575,7 +592,7 @@ const TeacherStatisticsPage: React.FC = () => {
 
     try {
       const studentIds = studentsCache.map((s) => s.id);
-      if (studentIds.length === 0) {
+      if (studentIds.length === 0 || !userProfile?.school_id) {
         setLoadingBadgeDetail(false);
         return;
       }
@@ -602,6 +619,29 @@ const TeacherStatisticsPage: React.FC = () => {
         sysQuery = sysQuery.lte("earned_date", endDateStr);
       }
       const { data: sysBadges } = await sysQuery;
+
+      const { data: periodMissions } = await supabase
+        .from("missions")
+        .select("id")
+        .eq("school_id", userProfile.school_id)
+        .eq("is_active", true);
+
+      let periodLogsQuery = supabase
+        .from("mission_logs")
+        .select("student_id, mission_id, completed_at")
+        .in("student_id", studentIds)
+        .gte("completed_at", startDate.toISO());
+      if (hasExplicitEndDate) {
+        periodLogsQuery = periodLogsQuery.lte("completed_at", endDate.toISO());
+      }
+      const { data: periodLogs } = await periodLogsQuery;
+
+      const missingDailyBadges = findMissingDailyMissionBadges(
+        (periodMissions ?? []).map((mission) => mission.id),
+        periodLogs ?? [],
+        sysBadges ?? []
+      );
+      await persistMissingDailyMissionBadges(missingDailyBadges);
 
       // 커스텀 배지 조회 (배지 정보 포함)
       let customQuery = supabase
@@ -633,6 +673,17 @@ const TeacherStatisticsPage: React.FC = () => {
           badge_name: info.name,
           badge_icon: info.icon,
           earned_date: b.earned_date,
+          badge_type: "system",
+        });
+      });
+
+      const dailyInfo = systemBadgeNames.daily_mission_complete;
+      missingDailyBadges.forEach((badge) => {
+        details.push({
+          student_name: studentMap.get(badge.student_id) || "알 수 없음",
+          badge_name: dailyInfo.name,
+          badge_icon: dailyInfo.icon,
+          earned_date: badge.earned_date,
           badge_type: "system",
         });
       });

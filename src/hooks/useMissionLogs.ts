@@ -263,11 +263,9 @@ export const useMissionLogs = (formattedDate: string) => {
     }
 
     // 1. 현재 상태 스냅샷 (badge 체크 로직 이동을 위해 필요)
-    const currentCompletedToday = completedTodayCount;
     const currentTotalCompleted = totalCompletedCount ?? 0;
 
     // 2. 다음 상태 예측
-    const newCompletedToday = currentCompletedToday + 1;
     const newTotalCompleted = currentTotalCompleted + 1;
 
     // 3. 배지 획득 조건 한 번에 검사
@@ -294,39 +292,6 @@ export const useMissionLogs = (formattedDate: string) => {
       console.log("🎉 Predicted badge earn: 열정 가득");
       newlyEarnedBadgeIds.push(passionBadgeId);
       badgesToUpdateInSet.add(passionBadgeId);
-    }
-
-    // 오늘의 미션 달성 배지 체크 (오늘 할당량 모두 완료)
-    const dailyCompleteBadgeId = "daily_mission_complete";
-    if (
-      totalMissionsToday > 0 &&
-      newCompletedToday >= totalMissionsToday &&
-      currentCompletedToday < totalMissionsToday
-    ) {
-      console.log("🎉 일일 미션 모두 달성!");
-      // 시스템 배지 자동 부여
-      try {
-        const { error } = await supabase.from("student_system_badges").insert({
-          student_id: userProfile.id,
-          system_badge_id: dailyCompleteBadgeId,
-          earned_date: formattedDate,
-        });
-
-        if (error && error.code !== "23505") {
-          // 중복 에러가 아닌 경우만 로그
-          console.error("일일미션 달성 배지 저장 실패:", error);
-        } else if (!error) {
-          console.log("✅ 일일미션 달성 배지 획득!");
-          // Toast 알림 표시
-          toast.success("🏆 오늘의 미션 달성! 배지를 획득했습니다!", {
-            duration: 4000,
-            position: "top-center",
-          });
-          showBadgeNotification("daily_mission_complete");
-        }
-      } catch (err) {
-        console.error("배지 저장 중 오류:", err);
-      }
     }
 
     // --- DB 작업 시작 ---
@@ -415,6 +380,55 @@ export const useMissionLogs = (formattedDate: string) => {
         }
 
         throw insertError;
+      }
+
+      try {
+        const day = DateTime.fromISO(formattedDate, { zone: "Asia/Seoul" });
+        const dayStart = day.startOf("day").toISO()!;
+        const dayEnd = day.endOf("day").toISO()!;
+        const { data: activeMissions, error: activeError } = await supabase
+          .from("missions")
+          .select("id")
+          .eq("school_id", userProfile.school_id)
+          .eq("is_active", true);
+
+        if (!activeError && activeMissions && activeMissions.length > 0) {
+          const activeIds = new Set(activeMissions.map((mission) => mission.id));
+          const { data: todayLogs, error: todayLogsError } = await supabase
+            .from("mission_logs")
+            .select("mission_id")
+            .eq("student_id", userProfile.id)
+            .gte("completed_at", dayStart)
+            .lte("completed_at", dayEnd);
+
+          const done = new Set(
+            (todayLogs ?? [])
+              .map((log) => log.mission_id)
+              .filter((id) => activeIds.has(id))
+          );
+
+          if (!todayLogsError && done.size >= activeIds.size) {
+            const { error: badgeError } = await supabase
+              .from("student_system_badges")
+              .insert({
+                student_id: userProfile.id,
+                system_badge_id: "daily_mission_complete",
+                earned_date: formattedDate,
+              });
+
+            if (badgeError && badgeError.code !== "23505") {
+              console.error("일일미션 달성 배지 저장 실패:", badgeError);
+            } else if (!badgeError) {
+              toast.success("🏆 오늘의 미션 달성! 배지를 획득했습니다!", {
+                duration: 4000,
+                position: "top-center",
+              });
+              showBadgeNotification("daily_mission_complete");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("배지 저장 중 오류:", err);
       }
 
       console.log("[addLog] 삽입 성공:", insertedLog);
