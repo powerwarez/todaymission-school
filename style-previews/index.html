@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>오늘의 미션 · 다섯 가지 구조</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e7e4dc; color: #1c1917; font-family: "Pretendard", "Malgun Gothic", sans-serif; }
+    .page { max-width: 1120px; margin: 0 auto; padding: 36px 20px 72px; }
+    .page > h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.04em; }
+    .lead { margin: 0 0 32px; color: #57534e; line-height: 1.55; }
+    .sample { margin: 0 0 40px; }
+    .caption { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; margin-bottom: 10px; }
+    .caption h2 { margin: 0; font-size: 18px; letter-spacing: -0.03em; }
+    .caption p { margin: 0; color: #57534e; font-size: 14px; }
+    .stage { border-radius: 18px; overflow: hidden; border: 1px solid rgba(0,0,0,.08); min-height: 520px; background: #fff; }
+
+    .rail { display: grid; grid-template-columns: 72px 1fr; min-height: 540px; background: #fafafa; color: #18181b; }
+    .rail nav { background: #18181b; color: #a1a1aa; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 0; }
+    .rail nav i { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-style: normal; font-size: 13px; }
+    .rail nav i.on { background: #fff; color: #18181b; font-weight: 800; }
+    .rail main { padding: 28px 32px; }
+    .kicker { font-size: 12px; letter-spacing: .12em; color: #71717a; }
+    .rail h3 { margin: 4px 0 6px; font-size: 32px; letter-spacing: -0.045em; }
+    .sub { margin: 0 0 16px; color: #71717a; }
+    .row { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: center; padding: 14px 0; border-top: 1px solid #e4e4e7; }
+    .box { width: 18px; height: 18px; border: 1.5px solid #18181b; border-radius: 4px; }
+    .box.on { background: #18181b; }
+    .row.done b { color: #a1a1aa; text-decoration: line-through; }
+    .days { display: flex; gap: 8px; margin-top: 18px; }
+    .days span { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: #e4e4e7; font-size: 13px; font-weight: 800; }
+    .days .now { background: #18181b; color: #fff; }
+
+    .bento { background: #f4f1ea; padding: 22px; min-height: 540px; }
+    .bento header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .bento header strong { font-size: 20px; letter-spacing: -0.03em; }
+    .links { display: flex; gap: 14px; font-size: 14px; color: #78716c; }
+    .links .on { color: #1c1917; font-weight: 800; }
+    .grid { display: grid; grid-template-columns: 200px 1fr 1fr; grid-template-rows: 148px 148px; gap: 12px; }
+    .tile { background: #fff; border-radius: 20px; padding: 16px 18px; }
+    .stat { background: #1c1917; color: #fafaf9; grid-row: 1 / span 2; display: flex; flex-direction: column; justify-content: space-between; }
+    .stat .n { font-size: 64px; line-height: .9; letter-spacing: -0.06em; font-weight: 800; }
+    .stat p { margin: 0; color: #d6d3d1; }
+    .tile b { display: block; margin-top: 22px; font-size: 16px; letter-spacing: -0.03em; }
+    .tile span, .wide span { color: #78716c; font-size: 13px; }
+    .wide { grid-column: 2 / span 2; display: flex; justify-content: space-between; align-items: flex-end; background: #fff7ed; }
+    .ok { color: #15803d; font-weight: 800; font-size: 13px; }
+
+    .split { display: grid; grid-template-columns: 280px 1fr; min-height: 540px; background: #f8fafc; }
+    .names { background: #fff; border-right: 1px solid #e2e8f0; padding: 18px 12px; }
+    .names h3 { margin: 4px 10px 14px; font-size: 15px; }
+    .names button { display: flex; justify-content: space-between; width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 12px; border-radius: 10px; font-size: 14px; color: #334155; }
+    .names button.on { background: #0f172a; color: #fff; }
+    .detail { padding: 28px 32px; }
+    .detail .eye { color: #64748b; font-size: 13px; }
+    .detail h3 { margin: 6px 0 8px; font-size: 34px; letter-spacing: -0.045em; }
+    .detail p { margin: 0 0 18px; color: #475569; line-height: 1.5; }
+    .go { border: 0; background: #0f172a; color: #fff; border-radius: 12px; padding: 12px 16px; font-weight: 700; }
+    .weekline { display: flex; gap: 10px; margin-top: 28px; }
+    .weekline div { width: 48px; height: 48px; border-radius: 50%; background: #e2e8f0; display: grid; place-items: center; font-weight: 800; }
+    .weekline .now { background: #0f172a; color: #fff; }
+
+    .hero { min-height: 540px; background: #fff; }
+    .band { background: #312e81; color: #eef2ff; padding: 28px 32px 22px; }
+    .band .school { opacity: .75; font-size: 13px; }
+    .band h3 { margin: 8px 0 0; font-size: 36px; letter-spacing: -0.045em; }
+    .band .nums { display: flex; gap: 28px; margin-top: 18px; }
+    .band .nums b { display: block; font-size: 28px; letter-spacing: -0.04em; }
+    .band .nums span { font-size: 12px; opacity: .75; }
+    .plist { padding: 8px 18px 18px; }
+    .song { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: center; padding: 12px 10px; border-radius: 12px; }
+    .mark { font-size: 18px; font-weight: 800; color: #312e81; }
+    .song b { display: block; }
+    .song small { color: #64748b; }
+    .song.done b { color: #94a3b8; text-decoration: line-through; }
+
+    .poster { min-height: 540px; background: #f6f1e7; color: #1a1a1a; padding: 18px 18px 8px; }
+    .stamp { display: flex; justify-content: space-between; align-items: end; padding: 6px 8px 12px; }
+    .stamp b { font-size: 28px; letter-spacing: -0.05em; }
+    .stamp span { border: 2px solid #1a1a1a; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 800; }
+    .band-row { display: grid; grid-template-columns: 64px 1fr 92px; gap: 8px; align-items: center; background: #fffdf8; border: 2px solid #1a1a1a; border-radius: 16px; padding: 12px 14px; margin-bottom: 8px; }
+    .band-row .no { font-size: 22px; font-weight: 800; }
+    .band-row b { font-size: 18px; letter-spacing: -0.03em; }
+    .sq { height: 64px; border-radius: 12px; background: #1a1a1a; color: #fff; display: grid; place-items: center; font-weight: 800; }
+    .sq.wait { background: #fff; color: #1a1a1a; border: 2px solid #1a1a1a; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>오늘의 미션으로 본 다섯 가지</h1>
+    <p class="lead">문다율 학생의 오늘 미션입니다. 보상 문구와 미션 이름은 지금 학급 것을 그대로 썼고, 화면 구조만 다섯 가지로 나눴습니다. 완료는 예시로 3개를 표시했습니다.</p>
+
+    <section class="sample">
+      <div class="caption">
+        <h2>1. 좁은 레일</h2>
+        <p>메뉴는 아이콘만 두고, 미션은 줄로 읽습니다.</p>
+      </div>
+      <div class="stage rail">
+        <nav><i class="on">미</i><i>명</i></nav>
+        <main>
+          <div class="kicker">2026년 10월 19일 · 월요일</div>
+          <h3>문다율</h3>
+          <p class="sub">이번 주 미션을 모두 달성하면 받을 보상</p>
+          <div class="row done"><div class="box on"></div><b>아침 활동 하기</b><em>완료</em></div>
+          <div class="row done"><div class="box on"></div><b>친구에게 인사하기</b><em>완료</em></div>
+          <div class="row"><div class="box"></div><b>급식 밥 다 먹기</b><em>남음</em></div>
+          <div class="row"><div class="box"></div><b>발표 1번 하기</b><em>남음</em></div>
+          <div class="row done"><div class="box on"></div><b>8시 30분 전에 학교 오기</b><em>완료</em></div>
+          <div class="days"><span class="now">월</span><span>화</span><span>수</span><span>목</span><span>금</span></div>
+        </main>
+      </div>
+    </section>
+
+    <section class="sample">
+      <div class="caption">
+        <h2>2. 벤토 보드</h2>
+        <p>오늘 남은 개수를 큰 칸에 두고, 미션은 크기 다른 칸으로 나눕니다.</p>
+      </div>
+      <div class="stage bento">
+        <header>
+          <strong>문다율 · 오늘의 미션</strong>
+          <div class="links"><span class="on">미션</span><span>명예의 전당</span></div>
+        </header>
+        <div class="grid">
+          <div class="tile stat"><p>오늘 남음</p><div class="n">2</div><p>5개 중 3개 완료</p></div>
+          <div class="tile"><span class="ok">완료</span><b>아침 활동 하기</b></div>
+          <div class="tile"><span class="ok">완료</span><b>친구에게 인사하기</b></div>
+          <div class="tile"><span>남음</span><b>급식 밥 다 먹기</b></div>
+          <div class="tile wide"><div><span>이번주 보상</span><b>모두 달성하면 받을 보상</b></div><span>월 · 오늘</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sample">
+      <div class="caption">
+        <h2>3. 목록과 상세</h2>
+        <p>왼쪽에서 미션을 고르면 오른쪽에서 완료하고, 주간이 함께 보입니다.</p>
+      </div>
+      <div class="stage split">
+        <aside class="names">
+          <div class="kicker" style="padding-left:10px">오늘의 미션</div>
+          <h3>3 / 5 완료</h3>
+          <button>아침 활동 하기 <span>완료</span></button>
+          <button>친구에게 인사하기 <span>완료</span></button>
+          <button class="on">급식 밥 다 먹기</button>
+          <button>발표 1번 하기</button>
+          <button>8시 30분 전에 학교 오기 <span>완료</span></button>
+        </aside>
+        <section class="detail">
+          <div class="eye">문다율 · 10월 19일 월요일</div>
+          <h3>급식 밥 다 먹기</h3>
+          <p>아직 완료하지 않았습니다. 누르면 오늘 미션에 기록됩니다. 이번 주 보상은 미션을 모두 달성하면 받는 보상입니다.</p>
+          <button class="go">오늘 완료로 표시</button>
+          <div class="weekline"><div class="now">월</div><div>화</div><div>수</div><div>목</div><div>금</div></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="sample">
+      <div class="caption">
+        <h2>4. 오늘 요약이 먼저</h2>
+        <p>위 띠에 남은 개수와 보상을 두고, 아래 미션은 목록처럼 훑습니다.</p>
+      </div>
+      <div class="stage hero">
+        <div class="band">
+          <div class="school">문다율 · 2026년 10월 19일 월요일</div>
+          <h3>오늘 미션 2개 남음</h3>
+          <div class="nums">
+            <div><b>3</b><span>완료</span></div>
+            <div><b>2</b><span>남음</span></div>
+            <div><b>월</b><span>이번 주 첫째 날</span></div>
+          </div>
+        </div>
+        <div class="plist">
+          <div class="song done"><div class="mark">완료</div><div><b>아침 활동 하기</b></div></div>
+          <div class="song done"><div class="mark">완료</div><div><b>친구에게 인사하기</b></div></div>
+          <div class="song"><div class="mark">남음</div><div><b>급식 밥 다 먹기</b></div></div>
+          <div class="song"><div class="mark">남음</div><div><b>발표 1번 하기</b></div></div>
+          <div class="song done"><div class="mark">완료</div><div><b>8시 30분 전에 학교 오기</b></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sample">
+      <div class="caption">
+        <h2>5. 교실 포스터</h2>
+        <p>번호를 크게 매기고, 완료는 검은 칸, 남은 미션은 빈 칸입니다.</p>
+      </div>
+      <div class="stage poster">
+        <div class="stamp"><b>오늘의 미션</b><span>문다율 · 월요일</span></div>
+        <div class="band-row"><div class="no">01</div><div><b>아침 활동 하기</b></div><div class="sq">완료</div></div>
+        <div class="band-row"><div class="no">02</div><div><b>친구에게 인사하기</b></div><div class="sq">완료</div></div>
+        <div class="band-row"><div class="no">03</div><div><b>급식 밥 다 먹기</b></div><div class="sq wait">남음</div></div>
+        <div class="band-row"><div class="no">04</div><div><b>발표 1번 하기</b></div><div class="sq wait">남음</div></div>
+        <div class="band-row"><div class="no">05</div><div><b>8시 30분 전에 학교 오기</b></div><div class="sq">완료</div></div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

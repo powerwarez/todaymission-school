@@ -5,6 +5,7 @@ interface WeeklyStatusDisplayProps {
   weekStatus: WeekdayStatus[];
   loading: boolean;
   error: string | null;
+  direction?: "column" | "row";
 }
 
 const dayNames = ["월", "화", "수", "목", "금"];
@@ -13,6 +14,7 @@ const WeeklyStatusDisplay: React.FC<WeeklyStatusDisplayProps> = ({
   weekStatus,
   loading,
   error,
+  direction = "column",
 }) => {
   // 상태에 따른 원형 구슬 스타일 반환
   const getStatusIndicatorStyle = (status: WeekdayStatus): string => {
@@ -80,8 +82,16 @@ const WeeklyStatusDisplay: React.FC<WeeklyStatusDisplayProps> = ({
   }
 
   return (
-    <div className="flex flex-col items-center space-y-3 p-6 bg-white rounded-lg min-w-[80px]">
-      <h3 className="text-lg font-semibold text-sky-700 mb-2">주간 미션</h3>
+    <div
+      className={`rounded-lg bg-white p-4 ${
+        direction === "row"
+          ? "flex flex-row flex-wrap items-end gap-3"
+          : "flex min-w-[80px] flex-col items-center space-y-3 p-6"
+      }`}
+    >
+      <h3 className="mb-2 text-lg font-semibold" style={{ color: "var(--color-text-secondary)" }}>
+        주간 미션
+      </h3>
       {weekStatus.map((status, index) => (
         <div key={status.dayIndex} className="flex flex-col items-center">
           <div

@@ -7,6 +7,7 @@ import {
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { useNotificationState } from "./hooks/useNotificationState";
 import { useTheme } from "./hooks/useTheme";
+import { LayoutProvider } from "./contexts/LayoutContext";
 import MainLayout from "./layouts/MainLayout";
 import TeacherLoginPage from "./pages/TeacherLoginPage";
 import HallOfFamePage from "./pages/HallOfFamePage";
@@ -300,9 +301,11 @@ const App: React.FC = () => {
     <AuthProvider>
       <NotificationProvider
         value={{ showBadgeNotification }}>
-        <ThemeInitializer>
-          <AppContent />
-        </ThemeInitializer>
+        <LayoutProvider>
+          <ThemeInitializer>
+            <AppContent />
+          </ThemeInitializer>
+        </LayoutProvider>
 
         {/* Toasters */}
         <Toaster

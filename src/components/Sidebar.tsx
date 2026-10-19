@@ -2,25 +2,26 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LuLayoutDashboard,
-  LuAward,
-  LuSettings,
   LuChevronsLeft,
   LuChevronsRight,
   LuLogOut,
-  LuBadge,
-  LuUsers,
-  LuTrendingUp,
   LuMail,
-  LuBookOpen,
 } from "react-icons/lu";
 import { useAuth } from "../contexts/AuthContext";
+import { useLayout } from "../contexts/LayoutContext";
+import {
+  studentMenuItems,
+  teacherMenuItems,
+} from "./navigation/appMenu";
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const { logout, isTeacher, isStudent, userProfile } =
     useAuth();
+  const { layout } = useLayout();
   const [isMinimized, setIsMinimized] = useState(false);
+  const minimized =
+    layout === "rail" ? true : layout === "split" ? false : isMinimized;
 
   // 디버깅용 로그
   if (isStudent && userProfile) {
@@ -43,49 +44,6 @@ const Sidebar: React.FC = () => {
       }
     }
   }
-
-  // 교사용 메뉴
-  const teacherMenuItems = [
-    {
-      path: "/teacher/dashboard",
-      name: "통계",
-      icon: LuTrendingUp,
-    },
-    {
-      path: "/teacher/mission-settings",
-      name: "오늘의 미션 설정",
-      icon: LuSettings,
-    },
-    {
-      path: "/teacher/badge-settings",
-      name: "도전과제 설정",
-      icon: LuBadge,
-    },
-    {
-      path: "/teacher/students",
-      name: "학생 관리",
-      icon: LuUsers,
-    },
-    {
-      path: "/teacher/guide",
-      name: "사용 안내",
-      icon: LuBookOpen,
-    },
-  ];
-
-  // 학생용 메뉴
-  const studentMenuItems = [
-    {
-      path: "/student/dashboard",
-      name: "오늘의 미션",
-      icon: LuLayoutDashboard,
-    },
-    {
-      path: "/student/hall-of-fame",
-      name: "명예의 전당",
-      icon: LuAward,
-    },
-  ];
 
   // 현재 사용자 역할에 따른 메뉴 선택
   const menuItems = isTeacher
@@ -123,7 +81,7 @@ const Sidebar: React.FC = () => {
   };
 
   const toggleSidebar = () => {
-    setIsMinimized(!isMinimized);
+    setIsMinimized(!minimized);
   };
 
   const copyEmailToClipboard = () => {
@@ -138,11 +96,16 @@ const Sidebar: React.FC = () => {
     );
   };
 
+  if (layout === "bento" || layout === "hero" || layout === "poster") {
+    return null;
+  }
+
+  const widthClass =
+    layout === "rail" ? "w-20" : layout === "split" ? "w-56" : minimized ? "w-16" : "w-64";
+
   return (
     <aside
-      className={`fixed top-0 left-0 h-full p-4 flex flex-col justify-between transition-width duration-300 ease-in-out z-10 ${
-        isMinimized ? "w-16" : "w-64"
-      }`}
+      className={`fixed top-0 left-0 h-full p-4 flex flex-col justify-between transition-width duration-300 ease-in-out z-10 ${widthClass}`}
       style={{
         backgroundColor: isTeacher
           ? "var(--color-primary-light)"
@@ -152,12 +115,13 @@ const Sidebar: React.FC = () => {
       <div>
         {/* Header with user info */}
         <div className="mb-8">
-          {!isMinimized ? (
+          {!minimized ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">
                   오늘의 미션
                 </h1>
+                {!layout && (
                 <button
                   onClick={toggleSidebar}
                   className="p-2 rounded-lg transition-colors"
@@ -173,6 +137,7 @@ const Sidebar: React.FC = () => {
                   aria-label="Collapse sidebar">
                   <LuChevronsLeft className="text-xl" />
                 </button>
+                )}
               </div>
               {userProfile && (
                 <div className="text-sm opacity-80">
@@ -224,6 +189,7 @@ const Sidebar: React.FC = () => {
             </div>
           ) : (
             <div className="flex justify-center">
+              {!layout && (
               <button
                 onClick={toggleSidebar}
                 className="p-2 rounded-lg transition-colors"
@@ -239,6 +205,7 @@ const Sidebar: React.FC = () => {
                 aria-label="Expand sidebar">
                 <LuChevronsRight className="text-xl" />
               </button>
+              )}
             </div>
           )}
         </div>
@@ -255,7 +222,7 @@ const Sidebar: React.FC = () => {
                       location.pathname === "/settings")
                       ? "text-white"
                       : ""
-                  } ${isMinimized ? "justify-center" : ""}`}
+                  } ${minimized ? "justify-center" : ""}`}
                   style={{
                     backgroundColor:
                       location.pathname === item.path ||
@@ -292,10 +259,10 @@ const Sidebar: React.FC = () => {
                   }}>
                   <item.icon
                     className={`text-xl ${
-                      !isMinimized ? "mr-3" : ""
+                      !minimized ? "mr-3" : ""
                     }`}
                   />
-                  {!isMinimized && <span>{item.name}</span>}
+                  {!minimized && <span>{item.name}</span>}
                 </Link>
               </li>
             ))}
@@ -309,7 +276,7 @@ const Sidebar: React.FC = () => {
           style={{
             borderColor: "var(--color-border-light)",
           }}>
-          {!isMinimized ? (
+          {!minimized ? (
             <div className="px-2">
               <div
                 className="flex items-start text-sm"
@@ -369,7 +336,7 @@ const Sidebar: React.FC = () => {
         <button
           onClick={handleLogout}
           className={`flex items-center w-full p-2 rounded-lg transition-colors ${
-            isMinimized ? "justify-center" : ""
+            minimized ? "justify-center" : ""
           }`}
           style={{ backgroundColor: "transparent" }}
           onMouseEnter={(e) => {
@@ -383,10 +350,10 @@ const Sidebar: React.FC = () => {
           aria-label="Logout">
           <LuLogOut
             className={`text-xl ${
-              !isMinimized ? "mr-3" : ""
+              !minimized ? "mr-3" : ""
             }`}
           />
-          {!isMinimized && <span>로그아웃</span>}
+          {!minimized && <span>로그아웃</span>}
         </button>
       </div>
     </aside>

@@ -4,27 +4,19 @@ import { useAuth } from "../contexts/AuthContext"; // 사용자 정보 가져오
 import { useMissions } from "../hooks/useMissions";
 import { useMissionLogs } from "../hooks/useMissionLogs";
 import { useWeeklyCompletionStatus } from "../hooks/useWeeklyCompletionStatus"; // 주간 현황 훅 임포트
-import WeeklyStatusDisplay from "../components/WeeklyStatusDisplay"; // 주간 현황 컴포넌트 임포트
+import TodayMissionViews from "../components/mission/TodayMissionViews";
+import { useLayout } from "../contexts/LayoutContext";
 import ConfettiEffect from "../components/ConfettiEffect";
 import LoadingWithRefresh from "../components/LoadingWithRefresh";
 import MissionFeedback from "../components/MissionFeedback"; // AI 피드백 컴포넌트 추가
 import { Mission } from "../types"; // Mission 타입만 가져오기
 import { toZonedTime, format } from "date-fns-tz"; // date-fns-tz import
-import { LuGift } from "react-icons/lu";
 // import { FaCheckCircle } from "react-icons/fa"; // 버튼 제거로 불필요
 // import { LuCircle } from 'react-icons/lu'; // 버튼 제거로 불필요
 
-// 완료 시 적용할 테마 기반 색상 배열
-const getCompletedMissionStyle = () => {
-  return {
-    backgroundColor: "var(--color-primary-light)",
-    borderLeftColor: "var(--color-primary-medium)",
-    color: "var(--color-text-primary)",
-  };
-};
-
 const TodayMissionPage: React.FC = () => {
   const { userProfile, timeZone } = useAuth(); // 사용자 정보 가져오기
+  const { layout } = useLayout();
 
   // 오늘 날짜를 KST 기준으로 설정
   const todayKSTObj = useMemo(
@@ -324,138 +316,32 @@ const TodayMissionPage: React.FC = () => {
         onComplete={handleConfettiComplete}
       />
 
-      <div className="flex justify-between items-center mb-2">
-        <h1
-          className="text-3xl font-bold"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          {childName || "우리 아이의 방울방울 미션 챌린지"}
-        </h1>
-        <div className="text-right">
-          <p
-            className="text-lg font-semibold"
-            style={{
-              color: "var(--color-text-secondary)",
-            }}
-          >
-            {/* 표시 날짜도 KST 기준으로 명확하게 */}
-            {format(todayKSTObj, "yyyy년 M월 d일", {
-              timeZone,
-            })}
-          </p>
-          {/* 요일 표시는 로컬 Date 객체의 getDay() 사용 가능 */}
-          <p className="text-md" style={{ color: "var(--color-text-muted)" }}>
-            {getWeekdayString(todayKSTObj)}요일
-          </p>
-        </div>
-      </div>
-
-      {/* 주간 보상 목표 표시 - 교사가 설정한 경우만 표시 */}
-      {showWeeklyReward && (
-        <div
-          className="mb-6 flex items-center p-3 rounded-lg"
-          style={{
-            backgroundColor: "var(--color-bg-hover)",
-          }}
-        >
-          <div className="flex-1">
-            <div className="flex items-center">
-              <LuGift
-                className="mr-2"
-                size={28}
-                style={{
-                  color: "var(--color-primary-medium)",
-                }}
-              />
-              <p
-                className="text-2xl font-semibold"
-                style={{
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                이번주 보상
-              </p>
-            </div>
-            <div
-              className="inline-flex items-center rounded-lg p-2 mt-2"
-              style={{
-                backgroundColor: "var(--color-primary-light)",
-              }}
-            >
-              <p
-                className="text-2xl"
-                style={{
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                {weeklyRewardGoal}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isLoading && <LoadingWithRefresh />}
       {error && (
         <p style={{ color: "var(--color-text-error)" }}>오류: {error}</p>
       )}
 
       {!isLoading && !error && (
-        <div className="flex flex-col md:flex-row gap-6">
-          <div className="flex-1 space-y-4">
-            {missionsWithStatus.length === 0 && (
-              <p className="text-center text-gray-500 bg-white p-6 rounded-lg shadow">
-                아직 설정된 미션이 없어요! "도전과제 설정"에서 오늘의 미션을
-                만들어 보세요.
-              </p>
-            )}
-            {missionsWithStatus.map((mission) => {
-              const missionStyle = mission.is_completed_today
-                ? "border-l-4"
-                : "bg-white";
-              const hoverStyle = mission.is_completed_today
-                ? ""
-                : "hover:bg-gray-50";
-              const textStyle = mission.is_completed_today
-                ? "line-through"
-                : "text-gray-800";
-
-              const completedStyle = mission.is_completed_today
-                ? getCompletedMissionStyle()
-                : {};
-
-              return (
-                <div
-                  key={mission.id}
-                  onClick={() => handleToggleComplete(mission)} // div 전체 클릭 핸들러
-                  className={`flex items-center p-4 rounded-lg shadow transition-all duration-300 ease-in-out cursor-pointer ${missionStyle} ${hoverStyle}`}
-                  style={completedStyle}
-                >
-                  <div className="flex-grow mr-4">
-                    <p
-                      className={`text-lg font-medium ${textStyle}`}
-                      style={{
-                        color: mission.is_completed_today
-                          ? "var(--color-text-primary)"
-                          : "var(--color-text-secondary)",
-                      }}
-                    >
-                      {mission.content}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="w-full md:w-auto">
-            <WeeklyStatusDisplay
-              weekStatus={weekStatus}
-              loading={weekStatusLoading}
-              error={weekStatusError}
-            />
-          </div>
-        </div>
+        <TodayMissionViews
+          layout={layout}
+          studentName={childName || "오늘의 미션"}
+          dateLabel={format(todayKSTObj, "yyyy년 M월 d일", { timeZone })}
+          weekdayLabel={`${getWeekdayString(todayKSTObj)}요일`}
+          showWeeklyReward={showWeeklyReward}
+          weeklyRewardGoal={weeklyRewardGoal}
+          missions={missionsWithStatus.map((mission) => ({
+            id: mission.id,
+            content: mission.content || mission.title,
+            is_completed_today: mission.is_completed_today,
+          }))}
+          weekStatus={weekStatus}
+          weekLoading={weekStatusLoading}
+          weekError={weekStatusError}
+          onToggle={(mission) => {
+            const full = missionsWithStatus.find((item) => item.id === mission.id);
+            if (full) handleToggleComplete(full);
+          }}
+        />
       )}
 
       {/* AI 피드백 섹션 */}

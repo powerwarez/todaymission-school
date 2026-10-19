@@ -22,6 +22,7 @@ import WeeklyBadgeSetting from "../components/WeeklyBadgeSetting";
 import AccountSettings from "../components/AccountSettings";
 import PinAuthModal from "../components/PinAuthModal";
 import ThemeManager from "../components/ThemeManager";
+import LayoutPicker from "../components/appearance/LayoutPicker";
 import AIMissionRecommendModal from "../components/AIMissionRecommendModal";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -298,6 +299,16 @@ const MissionSettingsPage: React.FC = () => {
                 </form>
               </>
             )}
+          </div>
+
+          <div className="mb-8">
+            <h1
+              className="text-2xl font-bold mb-6 flex items-center"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              화면 레이아웃
+            </h1>
+            <LayoutPicker />
           </div>
 
           {/* 테마 설정 섹션 */}

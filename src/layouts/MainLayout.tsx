@@ -1,15 +1,27 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import AppNav from "../components/navigation/AppNav";
 import { useAuth } from "../contexts/AuthContext";
+import { useLayout } from "../contexts/LayoutContext";
+import { layoutUsesTopNav } from "../theme/layouts";
 
 const MainLayout: React.FC = () => {
   const { isTeacher, isStudent } = useAuth();
+  const { layout } = useLayout();
+  const topNav = layoutUsesTopNav(layout);
+  const mainOffset = topNav
+    ? "ml-0"
+    : layout === "rail"
+      ? "ml-20"
+      : layout === "split"
+        ? "ml-56"
+        : "ml-64";
 
   return (
-    <div className="min-h-screen">
-      <Sidebar />
-      <main className="min-h-screen p-6 ml-64 transition-all duration-300 ease-in-out">
+    <div className="min-h-screen" style={{ backgroundColor: "var(--color-bg-main)" }}>
+      {topNav ? <AppNav /> : <Sidebar />}
+      <main className={`min-h-screen p-6 transition-all duration-300 ease-in-out ${mainOffset}`}>
         <div className="max-w-7xl mx-auto">
           {/* Role-based header */}
           <div className="mb-6">
