@@ -8,8 +8,8 @@ const LayoutPicker: React.FC = () => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <p className="text-sm mb-4" style={{ color: "var(--color-text-secondary)" }}>
-        고른 레이아웃은 이 브라우저와 학생 화면에 함께 적용됩니다. 색은 아래 테마
-        설정에서 바꿉니다.
+        고른 레이아웃은 지금 로그인한 계정에만 저장됩니다. 학생마다 다르게 둘 수
+        있습니다. 색은 아래 테마 설정에서 바꿉니다.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {APP_LAYOUTS.map((key) => {
